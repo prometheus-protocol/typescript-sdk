@@ -1,0 +1,38 @@
+{
+  "name": "@prometheus-protocol/typescript-sdk",
+  "private": false,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "SDK for interacting with the Prometheus Protocol",
+  "scripts": {
+    "build": "vite build"
+  },
+  "main": "./dist/prometheus-sdk.cjs.js",
+  "module": "./dist/prometheus-sdk.es.js", 
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/prometheus-sdk.es.js",
+      "require": "./dist/prometheus-sdk.cjs.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "icp",
+    "internet-computer",
+    "prometheus",
+    "payments",
+    "oauth2"
+  ],
+  "author": "alice",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.14",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}
