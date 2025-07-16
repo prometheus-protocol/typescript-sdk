@@ -40,8 +40,6 @@
     "@dfinity/agent": "^2.4.1",
     "@dfinity/identity": "^2.4.1",
     "@dfinity/identity-secp256k1": "^2.4.1",
-    "@dfinity/principal": "^2.4.1",
-    "dotenv": "^17.2.0",
-    "pem-file": "^1.0.1"
+    "@dfinity/principal": "^2.4.1"
   }
 }

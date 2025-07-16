@@ -3,6 +3,8 @@ import { Principal } from '@dfinity/principal';
 import { createActor } from './declarations/oauth_backend/index.js';
 import { type _SERVICE } from './declarations/oauth_backend/oauth_backend.did.js';
 
+export { identityFromPem } from './identity';
+
 // Define the structure for our server client's configuration
 export interface ServerClientConfig {
   // The canister ID of the main Prometheus Auth Canister
@@ -21,15 +23,8 @@ export interface ChargeOptions {
   amount: bigint;
 }
 
-// Define the possible error types for a failed charge
-export type ChargeError =
-  | 'InsufficientFunds'
-  | 'Unauthorized'
-  | 'AllowanceNotSet'
-  | 'Unknown';
-
 // Define the structure of the result from the charge method
-export type ChargeResult = { ok: true } | { ok: false; error: ChargeError };
+export type ChargeResult = { ok: true } | { ok: false; error: string };
 
 /**
  * The main client for interacting with the Prometheus Protocol from a secure server environment (e.g., Node.js).
@@ -66,8 +61,7 @@ export class PrometheusServerClient {
       if ('ok' in result) {
         return { ok: true };
       } else if ('err' in result) {
-        const errorKey = Object.keys(result.err)[0] as ChargeError;
-        return { ok: false, error: errorKey };
+        return { ok: false, error: result.err };
       } else {
         return { ok: false, error: 'Unknown' };
       }

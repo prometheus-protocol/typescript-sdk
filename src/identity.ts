@@ -5,7 +5,7 @@ import { Ed25519KeyIdentity } from '@dfinity/identity';
 import { Secp256k1KeyIdentity } from '@dfinity/identity-secp256k1';
 import pemfile from 'pem-file';
 
-export function decodeFile(file: string, password?: string) {
+export function identityFromPem(file: string, password?: string) {
   let rawKey = fs.readFileSync(file);
   if (password) {
     return decode(decrypt(rawKey, password));

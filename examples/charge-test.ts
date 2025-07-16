@@ -1,9 +1,7 @@
 import { Principal } from '@dfinity/principal';
-import { PrometheusServerClient } from '../src/index.ts'; // Import directly from src for easy testing
-import * as fs from 'fs';
+import { identityFromPem, PrometheusServerClient } from '../src/index.ts'; // Import directly from src for easy testing
 import * as path from 'path';
 import 'dotenv/config'; // Load .env file
-import { decodeFile } from '../src/identity.ts';
 import * as url from 'url';
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -31,7 +29,9 @@ async function main() {
   // 1. Load the server's identity from the PEM file
   console.log(`Loading server identity from ${PEM_FILE_PATH}...`);
 
-  const identity = decodeFile(path.resolve(__dirname, '..', PEM_FILE_PATH));
+  const identity = identityFromPem(
+    path.resolve(__dirname, '..', PEM_FILE_PATH),
+  );
   console.log(`Server Principal: ${identity.getPrincipal().toText()}`);
 
   // 2. Instantiate our SDK client

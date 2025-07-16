@@ -21,7 +21,9 @@ export default defineConfig({
         '@dfinity/agent',
         '@dfinity/identity',
         '@dfinity/principal',
+        'pem-file',
         'node:fs',
+        'node:buffer',
       ],
       output: {
         // Define globals for UMD build (if you were building for browsers)
