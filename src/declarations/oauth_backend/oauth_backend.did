@@ -1,31 +1,24 @@
-type Token = record {arbitrary_data: text;};
-type Time = int;
-type Subscription = 
+type UpdateResourceServerUrisArgs = 
  record {
-   expires_at: Time;
-   tier: text;
-   user_principal: principal;
+   new_uris: vec text;
+   resource_server_id: text;
  };
+type Token = record {arbitrary_data: text;};
 type StreamingStrategy = variant {Callback: CallbackStrategy;};
 type StreamingCallbackHttpResponse = 
  record {
    body: blob;
    token: opt Token;
  };
-type Result_2 = 
+type Result_1 = 
  variant {
    err: text;
    ok;
  };
-type Result_1 = 
- variant {
-   err: text;
-   ok: text;
- };
 type Result = 
  variant {
    err: text;
-   ok: Subscription;
+   ok: text;
  };
 type ResourceServer = 
  record {
@@ -38,6 +31,14 @@ type ResourceServer =
              active;
              pending;
            };
+   uris: vec text;
+ };
+type RegisterResourceServerArgs = 
+ record {
+   initial_service_principal: principal;
+   name: text;
+   payout_principal: principal;
+   uris: vec text;
  };
 type HttpResponse = 
  record {
@@ -72,6 +73,12 @@ type Client =
              pending_activation;
            };
  };
+type ChargeUserArgs = 
+ record {
+   amount: nat;
+   icrc2_ledger_id: principal;
+   user_to_charge: principal;
+ };
 type CallbackStrategy = 
  record {
    callback: func (Token) -> (StreamingCallbackHttpResponse) query;
@@ -79,17 +86,15 @@ type CallbackStrategy =
  };
 type AuthCanister = 
  service {
-   activate_client: (client_id: text, client_secret: text) -> (Result_1);
    add_test_client: (client: Client) -> () oneway;
-   charge_user: (user_to_charge: principal, amount: nat) -> (Result_2);
-   complete_authorize: (session_id: text, user_principal: principal) ->
-    (Result_1);
-   get_subscription: () -> (opt Subscription) query;
+   charge_user: (args: ChargeUserArgs) -> (Result_1);
+   complete_authorize: (session_id: text) -> (Result);
    http_request: (req: HttpRequest) -> (HttpResponse) query;
    http_request_update: (req: HttpRequest) -> (HttpResponse);
-   register_resource_server: (name: text, payout_principal: principal,
-    initial_service_principal: principal) -> (ResourceServer);
-   register_subscription: () -> (Result);
+   register_resource_server: (args: RegisterResourceServerArgs) ->
+    (ResourceServer);
    set_frontend_canister_id: (id: principal) -> () oneway;
+   update_resource_server_uris: (args: UpdateResourceServerUrisArgs) ->
+    (Result);
  };
-service : (ledger_id: principal) -> AuthCanister
+service : () -> AuthCanister

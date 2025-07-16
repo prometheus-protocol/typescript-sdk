@@ -9,12 +9,16 @@
   },
   "main": "./dist/prometheus-sdk.cjs.js",
   "module": "./dist/prometheus-sdk.es.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/prometheus-sdk.es.js",
-      "require": "./dist/prometheus-sdk.cjs.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.cjs"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "require": "./dist/browser.cjs"
     }
   },
   "files": [
@@ -40,6 +44,9 @@
     "@dfinity/agent": "^2.4.1",
     "@dfinity/identity": "^2.4.1",
     "@dfinity/identity-secp256k1": "^2.4.1",
-    "@dfinity/principal": "^2.4.1"
+    "@dfinity/principal": "^2.4.1",
+    "pem-file": "^1.0.1",
+    "pkce-challenge": "^5.0.0",
+    "zod": "^4.0.5"
   }
 }

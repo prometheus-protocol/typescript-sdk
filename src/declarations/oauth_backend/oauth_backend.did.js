@@ -1,5 +1,4 @@
 export const idlFactory = ({ IDL }) => {
-  const Result_1 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
   const Client = IDL.Record({
     'status' : IDL.Variant({
       'active' : IDL.Null,
@@ -12,13 +11,13 @@ export const idlFactory = ({ IDL }) => {
     'logo_uri' : IDL.Text,
     'client_id' : IDL.Text,
   });
-  const Result_2 = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
-  const Time = IDL.Int;
-  const Subscription = IDL.Record({
-    'user_principal' : IDL.Principal,
-    'tier' : IDL.Text,
-    'expires_at' : Time,
+  const ChargeUserArgs = IDL.Record({
+    'user_to_charge' : IDL.Principal,
+    'amount' : IDL.Nat,
+    'icrc2_ledger_id' : IDL.Principal,
   });
+  const Result_1 = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
+  const Result = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
   const HeaderField = IDL.Tuple(IDL.Text, IDL.Text);
   const HttpRequest = IDL.Record({
     'url' : IDL.Text,
@@ -43,31 +42,43 @@ export const idlFactory = ({ IDL }) => {
     'streaming_strategy' : IDL.Opt(StreamingStrategy),
     'status_code' : IDL.Nat16,
   });
+  const RegisterResourceServerArgs = IDL.Record({
+    'initial_service_principal' : IDL.Principal,
+    'name' : IDL.Text,
+    'uris' : IDL.Vec(IDL.Text),
+    'payout_principal' : IDL.Principal,
+  });
   const ResourceServer = IDL.Record({
     'status' : IDL.Variant({ 'active' : IDL.Null, 'pending' : IDL.Null }),
     'resource_server_id' : IDL.Text,
     'owner' : IDL.Principal,
     'name' : IDL.Text,
+    'uris' : IDL.Vec(IDL.Text),
     'service_principals' : IDL.Vec(IDL.Principal),
     'payout_principal' : IDL.Principal,
   });
-  const Result = IDL.Variant({ 'ok' : Subscription, 'err' : IDL.Text });
+  const UpdateResourceServerUrisArgs = IDL.Record({
+    'resource_server_id' : IDL.Text,
+    'new_uris' : IDL.Vec(IDL.Text),
+  });
   const AuthCanister = IDL.Service({
-    'activate_client' : IDL.Func([IDL.Text, IDL.Text], [Result_1], []),
     'add_test_client' : IDL.Func([Client], [], ['oneway']),
-    'charge_user' : IDL.Func([IDL.Principal, IDL.Nat], [Result_2], []),
-    'complete_authorize' : IDL.Func([IDL.Text, IDL.Principal], [Result_1], []),
-    'get_subscription' : IDL.Func([], [IDL.Opt(Subscription)], ['query']),
+    'charge_user' : IDL.Func([ChargeUserArgs], [Result_1], []),
+    'complete_authorize' : IDL.Func([IDL.Text], [Result], []),
     'http_request' : IDL.Func([HttpRequest], [HttpResponse], ['query']),
     'http_request_update' : IDL.Func([HttpRequest], [HttpResponse], []),
     'register_resource_server' : IDL.Func(
-        [IDL.Text, IDL.Principal, IDL.Principal],
+        [RegisterResourceServerArgs],
         [ResourceServer],
         [],
       ),
-    'register_subscription' : IDL.Func([], [Result], []),
     'set_frontend_canister_id' : IDL.Func([IDL.Principal], [], ['oneway']),
+    'update_resource_server_uris' : IDL.Func(
+        [UpdateResourceServerUrisArgs],
+        [Result],
+        [],
+      ),
   });
   return AuthCanister;
 };
-export const init = ({ IDL }) => { return [IDL.Principal]; };
+export const init = ({ IDL }) => { return []; };

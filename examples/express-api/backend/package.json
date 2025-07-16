@@ -14,7 +14,7 @@
   "description": "",
   "dependencies": {
     "@dfinity/principal": "^2.4.1",
-    "@prometheus-protocol/typescript-sdk": "file:../..",
+    "@prometheus-protocol/typescript-sdk": "file:../../..",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",

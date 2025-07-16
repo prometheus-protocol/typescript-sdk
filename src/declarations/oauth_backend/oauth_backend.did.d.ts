@@ -3,23 +3,29 @@ import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
 export interface AuthCanister {
-  'activate_client' : ActorMethod<[string, string], Result_1>,
   'add_test_client' : ActorMethod<[Client], undefined>,
-  'charge_user' : ActorMethod<[Principal, bigint], Result_2>,
-  'complete_authorize' : ActorMethod<[string, Principal], Result_1>,
-  'get_subscription' : ActorMethod<[], [] | [Subscription]>,
+  'charge_user' : ActorMethod<[ChargeUserArgs], Result_1>,
+  'complete_authorize' : ActorMethod<[string], Result>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
   'http_request_update' : ActorMethod<[HttpRequest], HttpResponse>,
   'register_resource_server' : ActorMethod<
-    [string, Principal, Principal],
+    [RegisterResourceServerArgs],
     ResourceServer
   >,
-  'register_subscription' : ActorMethod<[], Result>,
   'set_frontend_canister_id' : ActorMethod<[Principal], undefined>,
+  'update_resource_server_uris' : ActorMethod<
+    [UpdateResourceServerUrisArgs],
+    Result
+  >,
 }
 export interface CallbackStrategy {
   'token' : Token,
   'callback' : [Principal, string],
+}
+export interface ChargeUserArgs {
+  'user_to_charge' : Principal,
+  'amount' : bigint,
+  'icrc2_ledger_id' : Principal,
 }
 export interface Client {
   'status' : { 'active' : null } |
@@ -45,33 +51,36 @@ export interface HttpResponse {
   'streaming_strategy' : [] | [StreamingStrategy],
   'status_code' : number,
 }
+export interface RegisterResourceServerArgs {
+  'initial_service_principal' : Principal,
+  'name' : string,
+  'uris' : Array<string>,
+  'payout_principal' : Principal,
+}
 export interface ResourceServer {
   'status' : { 'active' : null } |
     { 'pending' : null },
   'resource_server_id' : string,
   'owner' : Principal,
   'name' : string,
+  'uris' : Array<string>,
   'service_principals' : Array<Principal>,
   'payout_principal' : Principal,
 }
-export type Result = { 'ok' : Subscription } |
+export type Result = { 'ok' : string } |
   { 'err' : string };
-export type Result_1 = { 'ok' : string } |
-  { 'err' : string };
-export type Result_2 = { 'ok' : null } |
+export type Result_1 = { 'ok' : null } |
   { 'err' : string };
 export interface StreamingCallbackHttpResponse {
   'token' : [] | [Token],
   'body' : Uint8Array | number[],
 }
 export type StreamingStrategy = { 'Callback' : CallbackStrategy };
-export interface Subscription {
-  'user_principal' : Principal,
-  'tier' : string,
-  'expires_at' : Time,
-}
-export type Time = bigint;
 export interface Token { 'arbitrary_data' : string }
+export interface UpdateResourceServerUrisArgs {
+  'resource_server_id' : string,
+  'new_uris' : Array<string>,
+}
 export interface _SERVICE extends AuthCanister {}
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

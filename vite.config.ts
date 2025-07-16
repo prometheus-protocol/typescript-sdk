@@ -7,13 +7,20 @@ export default defineConfig({
     // Tell Vite to build a library
     lib: {
       // The entry point for our library
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        server: resolve(__dirname, 'src/server.ts'),
+        browser: resolve(__dirname, 'src/browser.ts'),
+      },
+
       // The name of the global variable when used in a <script> tag
       name: 'PrometheusSDK',
       // The formats to build
       formats: ['es', 'cjs'],
       // The file name for the output bundles
-      fileName: (format) => `prometheus-sdk.${format}.js`,
+      fileName: (format, entryName) => {
+        const extension = format === 'es' ? 'js' : format; // Use .js for es modules, .cjs for commonjs
+        return `${entryName}.${extension}`;
+      },
     },
     rollupOptions: {
       // We don't want to bundle external dependencies

@@ -3,7 +3,7 @@ import { Principal } from '@dfinity/principal';
 import { createActor } from './declarations/oauth_backend/index.js';
 import { type _SERVICE } from './declarations/oauth_backend/oauth_backend.did.js';
 
-export { identityFromPem } from './identity';
+export { identityFromPem } from './identity.js';
 
 // Define the structure for our server client's configuration
 export interface ServerClientConfig {
@@ -21,6 +21,8 @@ export interface ChargeOptions {
   userToCharge: Principal;
   // The amount to charge (in the smallest unit of the token)
   amount: bigint;
+  // The ID of the ICRC2 ledger to use for the charge
+  icrc2LedgerId: Principal;
 }
 
 // Define the structure of the result from the charge method
@@ -53,10 +55,11 @@ export class PrometheusServerClient {
    */
   public async charge(options: ChargeOptions): Promise<ChargeResult> {
     try {
-      const result = await this.actor.charge_user(
-        options.userToCharge,
-        options.amount,
-      );
+      const result = await this.actor.charge_user({
+        user_to_charge: options.userToCharge,
+        amount: options.amount,
+        icrc2_ledger_id: options.icrc2LedgerId,
+      });
 
       if ('ok' in result) {
         return { ok: true };
@@ -69,12 +72,5 @@ export class PrometheusServerClient {
       console.error('Error calling chargeUserFromTrustedService:', e);
       return { ok: false, error: 'Unknown' };
     }
-  }
-}
-
-// We'll leave the BrowserClient as a placeholder for now
-export class PrometheusBrowserClient {
-  constructor() {
-    console.log('Prometheus Browser Client Initialized.');
   }
 }

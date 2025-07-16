@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prometheus SDK Demo</title>
+  </head>
+  <body>
+    <h1>Prometheus SDK Express Demo</h1>
+
+    <div id="loggedOutView">
+      <p>You are not logged in.</p>
+      <button id="loginButton">Login with Prometheus</button>
+    </div>
+
+    <div id="loggedInView" style="display: none">
+      <p>Welcome! Your Principal:</p>
+      <pre id="principalDisplay"></pre>
+      <p>Your JWT:</p>
+      <pre id="tokenDisplay"></pre>
+      <button id="callApiButton">Call Protected API</button>
+      <button id="logoutButton">Logout</button>
+      <p>API Response:</p>
+      <pre id="apiResponse"></pre>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

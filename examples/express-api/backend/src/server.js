@@ -22,13 +22,13 @@ const PORT = process.env.PORT || 8080;
 const AUTH_CANISTER_ID = process.env.AUTH_CANISTER_ID;
 const IC_HOST = process.env.IC_HOST || 'http://127.0.0.1:4943'; // Use local replica by default
 const PEM_FILE_PATH = './server-identity.pem';
-const RESOURCE_SERVER_ID = process.env.RESOURCE_SERVER_ID;
+const RESOURCE_SERVER_URL = process.env.RESOURCE_SERVER_URL;
 
 // --- DEBUGGING ---
 console.log('--- Environment Variables ---');
 console.log('AUTH_CANISTER_ID:', AUTH_CANISTER_ID);
 console.log('IC_HOST:', IC_HOST);
-console.log('RESOURCE_SERVER_ID:', RESOURCE_SERVER_ID);
+console.log('RESOURCE_SERVER_URL:', RESOURCE_SERVER_URL);
 console.log('---------------------------');
 
 // --- JWT VALIDATION MIDDLEWARE ---
@@ -43,14 +43,14 @@ const checkJwt = jwt({
     jwksUri: `${IC_HOST}/.well-known/jwks.json?canisterId=${AUTH_CANISTER_ID}`,
   }),
   // Specify the expected audience and issuer from our JWTs
-  audience: RESOURCE_SERVER_ID,
+  audience: RESOURCE_SERVER_URL,
   issuer: AUTH_CANISTER_ID,
   algorithms: ['ES256'], // Our canister uses ECDSA with P-256 curve
 });
 
 // --- SDK INITIALIZATION ---
 const identity = identityFromPem(
-  path.resolve(__dirname, '..', '..', '..', PEM_FILE_PATH),
+  path.resolve(__dirname, '..', '..', '..', '..', PEM_FILE_PATH),
 );
 
 const prometheusClient = new PrometheusServerClient({
@@ -78,6 +78,7 @@ const paymentMiddleware = async (req, res, next) => {
   const result = await prometheusClient.charge({
     userToCharge: Principal.fromText(userPrincipal),
     amount: 10000n,
+    icrc2LedgerId: Principal.fromText('a4tbr-q4aaa-aaaaa-qaafq-cai'),
   });
 
   console.log(`Charge result for ${userPrincipal}:`, result);
@@ -104,13 +105,22 @@ app.get('/api/super-secret-data', checkJwt, paymentMiddleware, (req, res) => {
   });
 });
 
-// Error handler for the JWT middleware
-app.use((err, req, res, next) => {
-  if (err.name === 'UnauthorizedError') {
-    res.status(401).json({ error: 'Invalid or missing token.' });
-  } else {
-    next(err);
-  }
+// --- OAuth Protected Resource Metadata Endpoint (RFC 8728) ---
+// This endpoint tells clients where to find the authorization server.
+app.get('/.well-known/oauth-protected-resource', (req, res) => {
+  const authServerUrl = new URL(IC_HOST);
+  const hostname =
+    authServerUrl.hostname === '127.0.0.1'
+      ? 'localhost'
+      : authServerUrl.hostname;
+  authServerUrl.hostname = `${AUTH_CANISTER_ID}.${hostname}`;
+
+  res.json({
+    // The URL of the authorization server that can issue tokens for this resource server.
+    authorization_servers: [authServerUrl.href],
+    // The resource identifier for this API.
+    resource: RESOURCE_SERVER_URL,
+  });
 });
 
 app.listen(PORT, () => {
