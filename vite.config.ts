@@ -17,7 +17,12 @@ export default defineConfig({
     },
     rollupOptions: {
       // We don't want to bundle external dependencies
-      external: [], // e.g. ['@dfinity/agent'] if we add it later
+      external: [
+        '@dfinity/agent',
+        '@dfinity/identity',
+        '@dfinity/principal',
+        'node:fs',
+      ],
       output: {
         // Define globals for UMD build (if you were building for browsers)
         globals: {},

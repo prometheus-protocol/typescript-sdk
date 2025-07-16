@@ -1,0 +1,95 @@
+type Token = record {arbitrary_data: text;};
+type Time = int;
+type Subscription = 
+ record {
+   expires_at: Time;
+   tier: text;
+   user_principal: principal;
+ };
+type StreamingStrategy = variant {Callback: CallbackStrategy;};
+type StreamingCallbackHttpResponse = 
+ record {
+   body: blob;
+   token: opt Token;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: Subscription;
+ };
+type ResourceServer = 
+ record {
+   name: text;
+   owner: principal;
+   payout_principal: principal;
+   resource_server_id: text;
+   service_principals: vec principal;
+   status: variant {
+             active;
+             pending;
+           };
+ };
+type HttpResponse = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   status_code: nat16;
+   streaming_strategy: opt StreamingStrategy;
+   upgrade: opt bool;
+ };
+type HttpRequest = 
+ record {
+   body: blob;
+   headers: vec HeaderField;
+   method: text;
+   url: text;
+ };
+type HeaderField = 
+ record {
+   text;
+   text;
+ };
+type Client = 
+ record {
+   client_id: text;
+   client_name: text;
+   client_secret_hash: text;
+   logo_uri: text;
+   owner: principal;
+   redirect_uris: vec text;
+   status: variant {
+             active;
+             pending_activation;
+           };
+ };
+type CallbackStrategy = 
+ record {
+   callback: func (Token) -> (StreamingCallbackHttpResponse) query;
+   token: Token;
+ };
+type AuthCanister = 
+ service {
+   activate_client: (client_id: text, client_secret: text) -> (Result_1);
+   add_test_client: (client: Client) -> () oneway;
+   charge_user: (user_to_charge: principal, amount: nat) -> (Result_2);
+   complete_authorize: (session_id: text, user_principal: principal) ->
+    (Result_1);
+   get_subscription: () -> (opt Subscription) query;
+   http_request: (req: HttpRequest) -> (HttpResponse) query;
+   http_request_update: (req: HttpRequest) -> (HttpResponse);
+   register_resource_server: (name: text, payout_principal: principal,
+    initial_service_principal: principal) -> (ResourceServer);
+   register_subscription: () -> (Result);
+   set_frontend_canister_id: (id: principal) -> () oneway;
+ };
+service : (ledger_id: principal) -> AuthCanister
