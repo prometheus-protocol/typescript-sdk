@@ -5,7 +5,7 @@
  */
 
 import { HttpAgent, type Identity } from '@dfinity/agent';
-import { Principal } from '@dfinity/principal';
+import { type Principal } from '@dfinity/principal';
 import { createActor } from './declarations/oauth_backend/index.js';
 import { type _SERVICE } from './declarations/oauth_backend/oauth_backend.did.js';
 
