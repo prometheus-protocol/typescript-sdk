@@ -1,6 +1,6 @@
 # `@prometheus-protocol/typescript-sdk`
 
-This is the official TypeScript SDK for the [Prometheus Protocol](https://github.com/prometheus-protocol/prometheus-protocol). It provides a simple and powerful way to integrate the Prometheus authentication and payment rail into both frontend and backend JavaScript/TypeScript applications.
+This is the official TypeScript SDK for the [Prometheus Protocol](https://github.com/prometheus-protocol). It provides a simple and powerful way to integrate the Prometheus authentication and payment rail into both frontend and backend JavaScript/TypeScript applications.
 
 The SDK is divided into two main parts:
 
@@ -10,7 +10,7 @@ The SDK is divided into two main parts:
 ## Installation
 
 ```bash
-npm install @prometheus-protocol/typescript-sdk
+npm install @prometheus-protocol/typescript-sdk @dfinity/identity express-jwt jwks-rsa
 ```
 
 ---
@@ -29,48 +29,29 @@ import { createPrometheusClient } from '@prometheus-protocol/typescript-sdk/brow
 
 async function handleAuthentication() {
   try {
-    // This one function handles everything.
     const prometheusClient = await createPrometheusClient({
-      // The canister ID of the main Prometheus auth canister.
       authCanisterId: import.meta.env.VITE_AUTH_CANISTER_ID,
-
-      // The full base URL of the target resource server API (e.g., "https://api.myapp.com").
       resourceServerUrl: import.meta.env.VITE_RESOURCE_SERVER_URL,
-
-      // The host for the Internet Computer (e.g., "https://icp-api.io" for production).
       icHost: import.meta.env.VITE_IC_HOST,
-
-      // Metadata for this client application. This is used for Dynamic Client Registration.
       clientMetadata: {
         client_name: 'My Awesome App',
         grant_types: ['authorization_code', 'refresh_token'],
-        token_endpoint_auth_method: 'none', // Public clients don't use a secret
-        scope: 'profile openid', // The permissions you are requesting
+        token_endpoint_auth_method: 'none',
+        scope: 'profile openid',
       },
     });
 
     // If the promise resolves, the user is successfully authenticated.
-    console.log('Authentication successful!');
     const accessToken = prometheusClient.getAccessToken();
-    const userPrincipal = prometheusClient.getPrincipal();
-
-    // Now you can update your UI and make authenticated API calls.
-    // Example: fetch('https://api.myapp.com/data', { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    // Now you can make authenticated API calls.
   } catch (error) {
-    // This catch block is expected to run on the first login attempt,
-    // as the function will trigger a page redirect and the promise will not resolve.
+    // This catch block is expected on the first login attempt, as it triggers a redirect.
     console.error('Authentication flow failed or was redirected:', error);
   }
 }
 
-// Run the authentication flow when the application loads.
 handleAuthentication();
 ```
-
-**How it Works:**
-
-- On the first run for a new user, `createPrometheusClient` will automatically redirect the browser to the Prometheus login page. In this case, the returned promise will **never resolve**.
-- After the user logs in and is redirected back to your app, `createPrometheusClient` will handle the token exchange. If successful, the promise will resolve and return an authenticated client instance.
 
 ---
 
@@ -78,82 +59,143 @@ handleAuthentication();
 
 For backend services that need to register themselves with the protocol or charge users for services.
 
-### Example: Registering a Resource Server
+### Step 1: Create a Dedicated Service Identity
 
-This is typically a one-time setup step for your service.
+For security, your live server should use its own dedicated identity, not your personal developer identity.
 
-```typescript
-// scripts/register.ts
-import { PrometheusServerClient } from '@prometheus-protocol/typescript-sdk/server';
-import { Ed25519KeyIdentity } from '@dfinity/identity';
-import fs from 'fs';
+**1. Create a new identity using `dfx`:**
 
-// Load your server's private key. This identity must have an ICRC-2 allowance
-// set for the Prometheus auth canister to pay any registration fees.
-const pemKey = fs.readFileSync('./path/to/your/server-identity.pem', 'utf8');
-const identity = Ed25519KeyIdentity.fromPEM(pemKey);
+```bash
+dfx identity new service-identity
+```
 
-async function register() {
-  const registration = await PrometheusServerClient.register({
-    authCanisterId: 'YOUR_AUTH_CANISTER_ID',
-    identity: identity,
-    clientName: 'My Awesome API Service',
-    clientType: 'confidential', // Backend services are confidential clients
-    redirectUris: [], // Not needed for a service-to-service client
+**2. Export the private key to a PEM file:** This file will be used by your Node.js server to sign requests.
+
+```bash
+# Make sure you are using the new identity
+dfx identity use service-identity
+
+# Export the key
+dfx identity export service-identity > service-identity.pem
+```
+
+**3. Get the Principal ID:** You will need this principal when you register your service.
+
+```bash
+# Get the principal of your new service identity
+dfx identity get-principal
+# It will output a principal string like: jmjyx-d5aic-g6lug-uhffn-aiuid-...
+
+# IMPORTANT: Switch back to your main developer identity for administrative tasks
+dfx identity use default
+```
+
+Now you have a `service-identity.pem` file for your server and its corresponding Principal ID.
+
+### Step 2: Registering Your Service (One-Time Setup)
+
+Registration is an administrative task that proves your ownership of a service. This should be done using your primary developer identity (`default`).
+
+**Using `dfx` (Recommended for simplicity):**
+
+```bash
+# Replace placeholders with your actual values
+dfx canister call <auth_canister_id> register_resource_server '(record {
+  name = "My Awesome API";
+  initial_service_principal = principal "<the_principal_from_step_1>";
+  payout_principal = principal "<your_payout_principal>";
+  uris = vec { "https://api.my-awesome-app.com" };
+})'
+```
+
+### Step 3: Protecting Your API and Charging Users
+
+This is the runtime logic for your live server. It uses the `service-identity.pem` file you created in Step 1.
+
+**Example `server.js`:**
+
+```javascript
+import express from 'express';
+import cors from 'cors';
+import { expressjwt as jwt } from 'express-jwt';
+import jwksRsa from 'jwks-rsa';
+import {
+  PrometheusServerClient,
+  identityFromPem,
+} from '@prometheus-protocol/typescript-sdk/server';
+import { Principal } from '@dfinity/principal';
+import 'dotenv/config';
+
+// --- CONFIGURATION ---
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 8080;
+const AUTH_CANISTER_ID = process.env.AUTH_CANISTER_ID;
+const IC_HOST = process.env.IC_HOST || 'http://127.0.0.1:4943';
+const RESOURCE_SERVER_URL = process.env.RESOURCE_SERVER_URL;
+
+// --- JWT VALIDATION MIDDLEWARE ---
+const checkJwt = jwt({
+  secret: jwksRsa.expressJwtSecret({
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5,
+    jwksUri: `${IC_HOST}/.well-known/jwks.json?canisterId=${AUTH_CANISTER_ID}`,
+  }),
+  audience: RESOURCE_SERVER_URL,
+  issuer: AUTH_CANISTER_ID,
+  algorithms: ['ES256'],
+});
+
+// --- SDK INITIALIZATION ---
+// Load your SERVICE's identity from the PEM file created in Step 1.
+const serviceIdentity = identityFromPem('./service-identity.pem');
+const prometheusClient = new PrometheusServerClient({
+  authCanisterId: AUTH_CANISTER_ID,
+  identity: serviceIdentity,
+  host: IC_HOST,
+});
+
+console.log(
+  `Server running with Principal: ${serviceIdentity.getPrincipal().toText()}`,
+);
+
+// --- PAYMENT MIDDLEWARE ---
+const paymentMiddleware = async (req, res, next) => {
+  const userPrincipal = req.auth.sub;
+  if (!userPrincipal) {
+    return res.status(401).json({ error: 'User principal not found in JWT.' });
+  }
+
+  const result = await prometheusClient.charge({
+    userToCharge: Principal.fromText(userPrincipal),
+    amount: 10000n, // Example: charge 0.0001 of the token
+    icrc2LedgerId: Principal.fromText('a4tbr-q4aaa-aaaaa-qaafq-cai'), // Replace with your ICRC2 ledger ID
   });
 
-  console.log('Successfully registered service!');
-  console.log('Client ID:', registration.client_id);
-  console.log('Client Secret:', registration.client_secret); // <-- Store this securely!
-}
-
-register();
-```
-
-### Example: Charging a User for a Service
-
-This is how your API can trigger a microtransaction.
-
-```typescript
-// src/api/charge-endpoint.ts
-import { PrometheusServerClient } from '@prometheus-protocol/typescript-sdk/server';
-import { Ed25519KeyIdentity } from '@dfinity/identity';
-import { Principal } from '@dfinity/principal';
-
-// Load your server's identity.
-const pemKey = fs.readFileSync('./path/to/your/server-identity.pem', 'utf8');
-const identity = Ed25519KeyIdentity.fromPEM(pemKey);
-
-async function chargeUserForThing(userPrincipal: string, amount: bigint) {
-  try {
-    const result = await PrometheusServerClient.charge({
-      authCanisterId: 'YOUR_AUTH_CANISTER_ID',
-      identity: identity, // The identity of the service initiating the charge.
-      userToCharge: Principal.fromText(userPrincipal),
-      amount: amount, // Amount in the smallest denomination (e.g., e8s).
-    });
-
-    if (result.ok) {
-      console.log('Successfully charged user!');
-      return { success: true };
-    } else {
-      console.error('Payment failed:', result.err);
-      return { success: false, error: result.err };
-    }
-  } catch (error) {
-    console.error('An unexpected error occurred:', error);
-    return { success: false, error: 'Charge failed' };
+  if (result.ok) {
+    console.log(`✅ Payment successful for ${userPrincipal}.`);
+    next();
+  } else {
+    res.status(402).json({ error: 'Payment Required', details: result.err });
   }
-}
+};
+
+// --- API ROUTES ---
+app.get('/api/super-secret-data', checkJwt, paymentMiddleware, (req, res) => {
+  res.json({
+    message: `Access granted to ${req.auth.sub}. The secret data is: 42.`,
+  });
+});
+
+app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 ```
-
-## API Reference
-
-For detailed information on all exported functions, types, and interfaces, please refer to the TSDoc comments within the source code. Modern IDEs like VS Code will automatically display this information via IntelliSense.
 
 ## Contributing
 
-Contributions are welcome! Please see the main [Prometheus Protocol repository](https://github.com/prometheus-protocol/prometheus-protocol) for overall project goals and contribution guidelines.
+Contributions are welcome! Please see the main [Prometheus Protocol repository](https://github.com/prometheus-protocol) for overall project goals and contribution guidelines.
 
 ## License
 
