@@ -1,3 +1,9 @@
+/**
+ * @module
+ * This module provides the server-side client and utilities for interacting with the
+ * Prometheus Protocol from a secure backend environment like Node.js.
+ */
+
 import { HttpAgent, type Identity } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 import { createActor } from './declarations/oauth_backend/index.js';
@@ -5,53 +11,67 @@ import { type _SERVICE } from './declarations/oauth_backend/oauth_backend.did.js
 
 export { identityFromPem } from './identity.js';
 
-// Define the structure for our server client's configuration
+/**
+ * Defines the configuration for the PrometheusServerClient.
+ */
 export interface ServerClientConfig {
-  // The canister ID of the main Prometheus Auth Canister
+  /** The canister ID of the main Prometheus auth canister. */
   authCanisterId: string;
-  // The server's own identity, loaded from its secure .pem file
+  /** The server's own identity, typically loaded from a secure PEM file using `identityFromPem`. */
   identity: Identity;
-  // Optional: specify the IC host. Defaults to the mainnet.
+  /** The host URL for the Internet Computer. Defaults to `https://icp-api.io`. */
   host?: string;
 }
 
-// Define the arguments for the charge method
+/**
+ * Defines the arguments for the `charge` method.
+ */
 export interface ChargeOptions {
-  // The Principal of the user to charge (extracted from their JWT)
+  /** The Principal of the user to be charged. This should be securely extracted from a validated JWT. */
   userToCharge: Principal;
-  // The amount to charge (in the smallest unit of the token)
+  /** The amount to charge, specified in the smallest unit of the token (e.g., e8s for ICP). */
   amount: bigint;
-  // The ID of the ICRC2 ledger to use for the charge
+  /** The canister Principal of the ICRC-2 compliant ledger to use for the transaction. */
   icrc2LedgerId: Principal;
 }
 
-// Define the structure of the result from the charge method
+/**
+ * Represents the outcome of a charge operation.
+ */
 export type ChargeResult = { ok: true } | { ok: false; error: string };
 
 /**
- * The main client for interacting with the Prometheus Protocol from a secure server environment (e.g., Node.js).
+ * The main client for interacting with the Prometheus Protocol from a secure server
+ * environment (e.g., Node.js). It handles authenticated calls to the auth canister.
  */
 export class PrometheusServerClient {
-  private actor: _SERVICE; // Replace 'any' with the specific Actor type if you have it
+  private actor: _SERVICE;
 
+  /**
+   * Creates an instance of the PrometheusServerClient.
+   * @param config The configuration for the client.
+   */
   constructor(config: ServerClientConfig) {
-    // Create an HttpAgent authenticated with the server's identity
+    // Create an HttpAgent authenticated with the server's identity.
     const agent = new HttpAgent({
       host: config.host ?? 'https://icp-api.io',
       identity: config.identity,
     });
 
-    // Create an Actor instance to interact with the auth canister
+    // Create an Actor instance to interact with the auth canister.
     this.actor = createActor(config.authCanisterId, {
       agent,
     });
   }
 
   /**
-   * Charges a user for a specific action by calling the Prometheus Auth Canister.
-   * This should be called from a trusted server backend.
-   * @param options - The details of the charge.
-   * @returns A result object indicating success or failure.
+   * Charges a user for a specific action by calling the Prometheus auth canister.
+   * This should only be called from a trusted server backend, as it uses the server's
+   * registered identity. If a network or canister error occurs, it will be caught
+   * and returned as a failure result.
+   *
+   * @param options An object containing the details of the charge.
+   * @returns A promise that resolves to a result object indicating the outcome of the charge.
    */
   public async charge(options: ChargeOptions): Promise<ChargeResult> {
     try {
@@ -63,14 +83,16 @@ export class PrometheusServerClient {
 
       if ('ok' in result) {
         return { ok: true };
-      } else if ('err' in result) {
-        return { ok: false, error: result.err };
       } else {
-        return { ok: false, error: 'Unknown' };
+        // The 'err' case is explicitly handled.
+        return { ok: false, error: result.err };
       }
     } catch (e) {
-      console.error('Error calling chargeUserFromTrustedService:', e);
-      return { ok: false, error: 'Unknown' };
+      // Catch any other exceptions (network errors, canister traps) and format them.
+      const errorMessage =
+        e instanceof Error ? e.message : 'An unknown error occurred.';
+      console.error('Error calling charge_user:', e);
+      return { ok: false, error: errorMessage };
     }
   }
 }
