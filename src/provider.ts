@@ -118,6 +118,19 @@ export class LocalStorageOAuthProvider implements OAuthClientProvider {
     window.location.href = authorizationUrl.toString();
   }
 
+  // --- State Param ---
+
+  /**
+   * Generates a random state parameter for CSRF protection.
+   * This should be used in the authorization request to prevent CSRF attacks.
+   * @returns A random string to be used as the state parameter.
+   */
+  state(): string {
+    const array = new Uint32Array(10);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, (num) => num.toString(36)).join('');
+  }
+
   // --- Invalidation ---
 
   /**

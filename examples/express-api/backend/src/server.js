@@ -21,7 +21,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 8080;
 const AUTH_CANISTER_ID = process.env.AUTH_CANISTER_ID;
 const IC_HOST = process.env.IC_HOST || 'http://127.0.0.1:4943'; // Use local replica by default
-const PEM_FILE_PATH = './server-identity.pem';
+const PEM_FILE_PATH = path.resolve(__dirname, '..', process.env.PEM_FILE_PATH);
 const RESOURCE_SERVER_URL = process.env.RESOURCE_SERVER_URL;
 
 // --- DEBUGGING ---
@@ -44,7 +44,10 @@ const checkJwt = jwt({
   }),
   // Specify the expected audience and issuer from our JWTs
   audience: RESOURCE_SERVER_URL,
-  issuer: AUTH_CANISTER_ID,
+  issuer:
+    process.env.NODE_ENV === 'development'
+      ? `http://${AUTH_CANISTER_ID}.localhost:4943`
+      : `https://${AUTH_CANISTER_ID}.ic0.app`,
   algorithms: ['ES256'], // Our canister uses ECDSA with P-256 curve
 });
 
