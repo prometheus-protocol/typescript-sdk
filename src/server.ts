@@ -6,8 +6,11 @@
 
 import { HttpAgent, type Identity } from '@dfinity/agent';
 import { type Principal } from '@dfinity/principal';
-import { createActor } from './declarations/oauth_backend/index.js';
-import { type _SERVICE } from './declarations/oauth_backend/oauth_backend.did.js';
+// Import the ICRC-1 Ledger Canister utility
+import {
+  IcrcLedgerCanister,
+  type TransferFromParams,
+} from '@dfinity/ledger-icrc';
 
 export { identityFromPem } from './identity.js';
 
@@ -15,12 +18,23 @@ export { identityFromPem } from './identity.js';
  * Defines the configuration for the PrometheusServerClient.
  */
 export interface ServerClientConfig {
-  /** The canister ID of the main Prometheus auth canister. */
-  authCanisterId: string;
-  /** The server's own identity, typically loaded from a secure PEM file using `identityFromPem`. */
+  /**
+   * The server's own identity, typically loaded from a secure PEM file.
+   */
   identity: Identity;
+  /**
+   * The Principal that will receive the funds from charges.
+   */
+  payoutPrincipal: Principal;
   /** The host URL for the Internet Computer. Defaults to `https://icp-api.io`. */
   host?: string;
+  /**
+   * Explicitly set whether to fetch the root key.
+   * In most cases, this can be omitted. The SDK will automatically fetch the root
+   * key if the host is 'localhost' or '127.0.0.1', and will not fetch it for
+   * production hosts. This is an escape hatch for non-standard local setups.
+   */
+  fetchRootKey?: boolean;
 }
 
 /**
@@ -38,60 +52,82 @@ export interface ChargeOptions {
 /**
  * Represents the outcome of a charge operation.
  */
-export type ChargeResult = { ok: true } | { ok: false; error: string };
+export type ChargeResult =
+  | { ok: true; blockIndex: bigint }
+  | { ok: false; error: string };
 
 /**
  * The main client for interacting with the Prometheus Protocol from a secure server
- * environment (e.g., Node.js). It handles authenticated calls to the auth canister.
+ * environment (e.g., Node.js). It handles direct, authenticated calls to ICRC-2 ledgers.
  */
 export class PrometheusServerClient {
-  private actor: _SERVICE;
+  private agent: HttpAgent;
+  private payoutPrincipal: Principal;
 
   /**
    * Creates an instance of the PrometheusServerClient.
    * @param config The configuration for the client.
    */
   constructor(config: ServerClientConfig) {
-    // Create an HttpAgent authenticated with the server's identity.
-    const agent = new HttpAgent({
-      host: config.host ?? 'https://icp-api.io',
+    const host = config.host ?? 'https://icp-api.io';
+
+    // Determine if we should fetch the root key.
+    // 1. Use the explicit setting if provided (the "escape hatch").
+    // 2. Otherwise, auto-detect based on the host URL.
+    const fetchRootKey =
+      typeof config.fetchRootKey === 'boolean'
+        ? config.fetchRootKey
+        : host.includes('localhost') || host.includes('127.0.0.1');
+
+    // The agent is authenticated with the server's service principal identity.
+    this.agent = new HttpAgent({
+      host,
       identity: config.identity,
+      shouldFetchRootKey: fetchRootKey, // Use our determined value
     });
 
-    // Create an Actor instance to interact with the auth canister.
-    this.actor = createActor(config.authCanisterId, {
-      agent,
-    });
+    this.payoutPrincipal = config.payoutPrincipal;
   }
 
   /**
-   * Charges a user for a specific action by calling the Prometheus auth canister.
-   * This should only be called from a trusted server backend, as it uses the server's
-   * registered identity. If a network or canister error occurs, it will be caught
-   * and returned as a failure result.
+   * Charges a user by executing an `icrc2_transfer_from` call directly on the specified ledger.
+   * This method uses the server's identity (provided in the constructor) as the `spender`.
+   * The call will only succeed if the user has previously granted a sufficient allowance
+   * to this server's identity via the Prometheus Protocol frontend.
    *
    * @param options An object containing the details of the charge.
    * @returns A promise that resolves to a result object indicating the outcome of the charge.
    */
   public async charge(options: ChargeOptions): Promise<ChargeResult> {
     try {
-      const result = await this.actor.charge_user({
-        user_to_charge: options.userToCharge,
-        amount: options.amount,
-        icrc2_ledger_id: options.icrc2LedgerId,
+      // Create an IcrcLedgerCanister instance for the target ledger.
+      const ledgerCanister = IcrcLedgerCanister.create({
+        agent: this.agent,
+        canisterId: options.icrc2LedgerId,
       });
 
-      if ('ok' in result) {
-        return { ok: true };
-      } else {
-        // The 'err' case is explicitly handled.
-        return { ok: false, error: result.err };
-      }
+      // Construct the arguments for the transfer_from call.
+      const transferArgs: TransferFromParams = {
+        from: {
+          owner: options.userToCharge,
+          subaccount: [], // Use the default subaccount
+        },
+        to: {
+          owner: this.payoutPrincipal, // Send funds to the configured payout address
+          subaccount: [],
+        },
+        amount: options.amount,
+        // The `spender_subaccount` is automatically handled by the agent's identity.
+      };
+
+      const txId = await ledgerCanister.transferFrom(transferArgs);
+
+      return { ok: true, blockIndex: txId };
     } catch (e) {
       // Catch any other exceptions (network errors, canister traps) and format them.
       const errorMessage =
         e instanceof Error ? e.message : 'An unknown error occurred.';
-      console.error('Error calling charge_user:', e);
+      console.error('Error calling transferFrom:', e);
       return { ok: false, error: errorMessage };
     }
   }

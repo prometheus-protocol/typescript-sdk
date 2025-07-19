@@ -23,12 +23,14 @@ const AUTH_CANISTER_ID = process.env.AUTH_CANISTER_ID;
 const IC_HOST = process.env.IC_HOST || 'http://127.0.0.1:4943'; // Use local replica by default
 const PEM_FILE_PATH = path.resolve(__dirname, '..', process.env.PEM_FILE_PATH);
 const RESOURCE_SERVER_URL = process.env.RESOURCE_SERVER_URL;
+const PAYOUT_PRINCIPAL = process.env.PAYOUT_PRINCIPAL;
 
 // --- DEBUGGING ---
 console.log('--- Environment Variables ---');
 console.log('AUTH_CANISTER_ID:', AUTH_CANISTER_ID);
 console.log('IC_HOST:', IC_HOST);
 console.log('RESOURCE_SERVER_URL:', RESOURCE_SERVER_URL);
+console.log('PAYOUT_PRINCIPAL:', PAYOUT_PRINCIPAL);
 console.log('---------------------------');
 
 // --- JWT VALIDATION MIDDLEWARE ---
@@ -60,6 +62,7 @@ const prometheusClient = new PrometheusServerClient({
   authCanisterId: AUTH_CANISTER_ID,
   identity,
   host: IC_HOST, // Use the same host for the SDK
+  payoutPrincipal: Principal.fromText(PAYOUT_PRINCIPAL),
 });
 
 console.log(

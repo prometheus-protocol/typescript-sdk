@@ -48,6 +48,7 @@
     "@dfinity/agent": "^2.4.1",
     "@dfinity/identity": "^2.4.1",
     "@dfinity/identity-secp256k1": "^2.4.1",
+    "@dfinity/ledger-icrc": "^2.9.1",
     "@dfinity/principal": "^2.4.1",
     "pem-file": "^1.0.1",
     "pkce-challenge": "^5.0.0",
