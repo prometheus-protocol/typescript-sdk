@@ -103,7 +103,6 @@ Registration is an administrative task that proves your ownership of a service. 
 dfx canister call <auth_canister_id> register_resource_server '(record {
   name = "My Awesome API";
   initial_service_principal = principal "<the_principal_from_step_1>";
-  payout_principal = principal "<your_payout_principal>";
   uris = vec { "https://api.my-awesome-app.com" };
 })'
 ```
@@ -156,6 +155,7 @@ const prometheusClient = new PrometheusServerClient({
   authCanisterId: AUTH_CANISTER_ID,
   identity: serviceIdentity,
   host: IC_HOST,
+  payoutPrincipal: Principal.fromText(process.env.PAYOUT_PRINCIPAL),
 });
 
 console.log(
