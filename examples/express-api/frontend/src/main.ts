@@ -26,7 +26,8 @@ async function handleAuthentication() {
         client_name: 'Prometheus Demo SPA (Dynamic)',
         grant_types: ['authorization_code', 'refresh_token'],
         token_endpoint_auth_method: 'none',
-        scope: 'openid prometheus:charge',
+        scope:
+          'openid prometheus:charge profile:read image:read image:write image:delete billing:read',
       },
     });
 
