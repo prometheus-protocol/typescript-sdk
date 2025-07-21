@@ -36,6 +36,7 @@
   "author": "alice",
   "license": "MIT",
   "devDependencies": {
+    "@types/morgan": "^1.9.10",
     "@types/node": "^24.0.14",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
@@ -50,6 +51,7 @@
     "@dfinity/identity-secp256k1": "^2.4.1",
     "@dfinity/ledger-icrc": "^2.9.1",
     "@dfinity/principal": "^2.4.1",
+    "morgan": "^1.10.1",
     "pem-file": "^1.0.1",
     "pkce-challenge": "^5.0.0",
     "zod": "^4.0.5"
