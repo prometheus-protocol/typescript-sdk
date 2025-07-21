@@ -2,6 +2,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import { mcpAuthMetadataRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
@@ -32,7 +33,7 @@ async function verifyJwtAndGetAuthContext(token: string): Promise<AuthInfo> {
       (err, decoded) => {
         if (err) {
           console.error('JWT verification failed:', err);
-          return reject(err);
+          return reject(new InvalidTokenError(err.message));
         }
         const payload = decoded as jwt.JwtPayload;
 
