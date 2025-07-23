@@ -3,6 +3,7 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   build: {
@@ -16,6 +17,7 @@ export default defineConfig({
       fileName: (format, entryName) =>
         `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },
+
     rollupOptions: {
       external: [
         '@dfinity/agent',
@@ -37,6 +39,9 @@ export default defineConfig({
   plugins: [
     dts({
       insertTypesEntry: true,
+    }),
+    nodePolyfills({
+      include: ['util'],
     }),
   ],
 });

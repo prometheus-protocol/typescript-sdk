@@ -2,7 +2,6 @@
 
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
-import banner from 'vite-plugin-banner';
 import pkg from './package.json'; // Import your package.json
 
 export default defineConfig({
