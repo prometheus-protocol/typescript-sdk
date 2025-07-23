@@ -12,7 +12,7 @@ import {
   type OAuthClientInformation,
   type OAuthTokens,
   type OAuthClientInformationFull,
-} from '@prometheus-protocol/typescript-sdk/browser';
+} from './browser';
 
 /**
  * An implementation of the `OAuthClientProvider` that uses the browser's
