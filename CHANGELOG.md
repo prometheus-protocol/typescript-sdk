@@ -1,3 +1,12 @@
+## [1.0.1](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.0...v1.0.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* add build step to release action ([1a1a8af](https://github.com/prometheus-protocol/typescript-sdk/commit/1a1a8af13aa26e834cdcb19ffd7953f14cfb0b2f))
+* remove node prefix to allow use in browser code ([dc1c30f](https://github.com/prometheus-protocol/typescript-sdk/commit/dc1c30f145019e4d40259c47696b1172e5b5a815))
+* remove self referential import from browser ([542d228](https://github.com/prometheus-protocol/typescript-sdk/commit/542d22827894532068f46f7d0ed131b6f01fa9af))
+
 # 1.0.0 (2025-07-23)
 
 
