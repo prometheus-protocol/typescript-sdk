@@ -9,12 +9,13 @@ import {
 import { Principal } from '@dfinity/principal';
 import { config } from './config';
 import { configureAuth } from './auth';
-import fs from 'fs';
+import morgan from 'morgan';
 
 async function main() {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  app.use(morgan('dev'));
 
   // --- AUTH & METADATA SETUP ---
   // This replaces all the manual JWT and .well-known setup
@@ -25,7 +26,7 @@ async function main() {
   // This logic handles loading identity from a file (local) or content (prod)
   const identity = config.IDENTITY_PEM_CONTENT
     ? identityFromPemContent(config.IDENTITY_PEM_CONTENT)
-    : identityFromPem(fs.readFileSync(config.IDENTITY_PEM_PATH!, 'utf-8'));
+    : identityFromPem(config.IDENTITY_PEM_PATH!);
 
   // The new client constructor is simpler
   const prometheusClient = new PrometheusServerClient({
@@ -39,8 +40,12 @@ async function main() {
   );
 
   // --- PAYMENT MIDDLEWARE ---
-  const paymentMiddleware = async (req, res, next) => {
-    const userPrincipal = req.auth.sub; // req.auth is populated by bearerAuthMiddleware
+  const paymentMiddleware = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    const userPrincipal = req.auth?.extra?.caller as string; // req.auth is populated by bearerAuthMiddleware
     if (!userPrincipal) {
       return res
         .status(401)

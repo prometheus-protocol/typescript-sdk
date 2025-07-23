@@ -52,17 +52,17 @@ export function createPrometheusJwtVerifier(
           algorithms: ['ES256'],
         },
         (err, decoded) => {
+          console.log('err:', err);
+          console.log('Decoded JWT:', decoded);
           if (err) {
             console.error('JWT verification failed:', err.message);
             return reject(new InvalidTokenError(err.message));
           }
           const payload = decoded as jwt.JwtPayload;
 
-          if (!payload.azp && !payload.client_id) {
+          if (!payload.azp) {
             return reject(
-              new InvalidTokenError(
-                'Access token is missing "azp" or "client_id" claim.',
-              ),
+              new InvalidTokenError('Access token is missing "azp" claim.'),
             );
           }
 
@@ -86,7 +86,7 @@ export function createPrometheusJwtVerifier(
 
           resolve({
             token,
-            clientId: payload.azp || payload.client_id,
+            clientId: payload.azp,
             scopes: payload.scope ? payload.scope.split(' ') : [],
             expiresAt: payload.exp,
             resource: new URL(audienceUrl),

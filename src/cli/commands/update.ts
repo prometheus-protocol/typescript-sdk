@@ -1,5 +1,3 @@
-// File: src/cli/commands/update.ts
-
 import type { Command } from 'commander';
 import prompts from 'prompts';
 import { Principal } from '@dfinity/principal';
@@ -51,7 +49,12 @@ export function registerUpdateCommand(program: Command) {
         (s) => s.resource_server_id === serverToManageId,
       )!;
 
-      // Read the current .env to pre-fill the payout principal prompt
+      // Determine initial state for the charging prompt. Handles malformed data gracefully.
+      const currentlyCharges = serverToUpdate.scopes.some(
+        (scope) => Array.isArray(scope) && scope[0] === 'prometheus:charge',
+      );
+
+      // ... (payout principal logic is unchanged) ...
       let currentPayoutPrincipal = '';
       try {
         const envPath = path.join(process.cwd(), '.env');
@@ -82,6 +85,13 @@ export function registerUpdateCommand(program: Command) {
           message: 'Logo URL:',
           initial: serverToUpdate.logo_uri,
         },
+        // +++ SIMPLIFIED UX FOR SCOPES +++
+        {
+          type: 'confirm',
+          name: 'willCharge',
+          message: 'Will this server charge users for services?',
+          initial: currentlyCharges,
+        },
         {
           type: 'text',
           name: 'tokens',
@@ -90,7 +100,6 @@ export function registerUpdateCommand(program: Command) {
             .map((p) => p.toText())
             .join(', '),
         },
-        // +++ ADDED PROMPT FOR PAYOUT PRINCIPAL +++
         {
           type: 'text',
           name: 'payoutPrincipal',
@@ -101,7 +110,24 @@ export function registerUpdateCommand(program: Command) {
 
       const newTokens = response.tokens
         .split(',')
-        .map((p: string) => Principal.fromText(p.trim()));
+        .map((p: string) => p.trim())
+        .filter((p: string) => p)
+        .map((p: string) => Principal.fromText(p));
+
+      // +++ REBUILD SCOPES FROM SCRATCH, CLEANING UP ANY BAD DATA +++
+      const newScopes: [string, string][] = [
+        [
+          'openid',
+          "Grants access to the user's unique identifier (Principal).",
+        ],
+      ];
+
+      if (response.willCharge) {
+        newScopes.push([
+          'prometheus:charge',
+          'Allows the server to request payments from the user.',
+        ]);
+      }
 
       const args: UpdateResourceServerArgs = {
         resource_server_id: serverToUpdate.resource_server_id,
@@ -109,17 +135,17 @@ export function registerUpdateCommand(program: Command) {
         uris: [[response.url]],
         logo_uri: [response.logo],
         accepted_payment_canisters: [newTokens],
-        scopes: [],
+        scopes: [newScopes],
         service_principals: [],
       };
 
       const result = await actor.update_resource_server(args);
       if ('err' in result) throw new Error(`Operation failed: ${result.err}`);
 
+      // ... (rest of the file remains the same) ...
       console.log(
         `   ✅ Successfully updated server '${response.name}' on-chain.`,
       );
-
       console.log('   Updating local .env file...');
       const envUpdates: Record<string, string> = { SERVER_URL: response.url };
       if (
@@ -129,10 +155,7 @@ export function registerUpdateCommand(program: Command) {
         envUpdates.PAYOUT_PRINCIPAL = response.payoutPrincipal;
       }
       updateEnvFile(envUpdates);
-
-      // Sync the token config for the new list of tokens
       await syncTokenConfig(newTokens);
-
       console.log(
         '\nUpdate complete. Local .env file and token config have been updated.',
       );

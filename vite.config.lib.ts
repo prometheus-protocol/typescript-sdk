@@ -30,6 +30,7 @@ export default defineConfig({
         'pem-file',
         'node:fs',
         'node:buffer',
+        'node:crypto',
         'node:child_process',
         'node:path',
         'node:os',

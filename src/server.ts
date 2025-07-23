@@ -11,8 +11,11 @@ import {
   IcrcLedgerCanister,
   type TransferFromParams,
 } from '@dfinity/ledger-icrc';
-
-export { identityFromPem, identityFromPemContent } from './identity.js';
+export {
+  identityFromDfx,
+  identityFromPem,
+  identityFromPemContent,
+} from './identity.js';
 export * from './oauth/verifier.js';
 
 /**

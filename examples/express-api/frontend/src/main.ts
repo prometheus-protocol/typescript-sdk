@@ -26,8 +26,7 @@ async function handleAuthentication() {
         client_name: 'Prometheus Demo SPA (Dynamic)',
         grant_types: ['authorization_code', 'refresh_token'],
         token_endpoint_auth_method: 'none',
-        scope:
-          'openid prometheus:charge profile:read image:read image:write image:delete billing:read',
+        scope: 'openid prometheus:charge',
       },
     });
 
@@ -75,7 +74,7 @@ callApiButton.onclick = async () => {
   apiResponse.textContent = 'Calling API...';
   try {
     const response = await fetch(
-      'http://localhost:8079/api/super-secret-data',
+      `${import.meta.env.VITE_RESOURCE_SERVER_URL}/api/super-secret-data`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,

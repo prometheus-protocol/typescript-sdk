@@ -5,7 +5,7 @@ import {
   getDfxIdentitiesList,
   updateEnvFile,
   syncTokenConfig,
-  loadIdentityWithPrompt, // Import the new utility function
+  loadIdentity, // Import the new utility function
 } from '../utils.js';
 
 export function registerSyncCommand(program: Command) {
@@ -63,7 +63,7 @@ export function registerSyncCommand(program: Command) {
 
       // Use the new utility to load the identity, which handles encryption
       const { identity: localIdentity, pemPath } =
-        await loadIdentityWithPrompt(dfxIdentityName);
+        loadIdentity(dfxIdentityName);
 
       const localPrincipal = localIdentity.getPrincipal();
       const remotePrincipal = serverToSync.service_principals[0];

@@ -7,7 +7,7 @@ import {
   updateEnvFile,
   updateGitignore,
   syncTokenConfig,
-  loadIdentityWithPrompt,
+  loadIdentity,
 } from '../utils.js';
 
 export function registerRegisterCommand(program: Command) {
@@ -36,6 +36,13 @@ export function registerRegisterCommand(program: Command) {
           initial:
             'https://placehold.co/128x128/1a1a1a/ffffff/png?text=My+Server',
         },
+        // +++ SIMPLIFIED UX FOR SCOPES +++
+        {
+          type: 'confirm',
+          name: 'willCharge',
+          message: 'Will this server charge users for services?',
+          initial: true,
+        },
         {
           type: 'text',
           name: 'tokens',
@@ -44,6 +51,7 @@ export function registerRegisterCommand(program: Command) {
         },
       ]);
 
+      // ... (dfx identity creation logic remains the same) ...
       const suggestedIdentityName =
         serverDetails.name.toLowerCase().replace(/\s+/g, '-') + '-sa';
       const { dfxIdentityName } = await prompts({
@@ -63,31 +71,45 @@ export function registerRegisterCommand(program: Command) {
         .split('\n');
       if (!existingIdentities.includes(dfxIdentityName)) {
         console.log(`   Creating new dfx identity '${dfxIdentityName}'...`);
-
-        // Ask user if they want to encrypt the new identity
         const { useEncryption } = await prompts({
           type: 'confirm',
           name: 'useEncryption',
           message: 'Do you want to protect this identity with a password?',
           initial: true,
         });
-
         const storageMode = useEncryption ? '' : '--storage-mode plaintext';
-        // Let dfx handle the interactive password prompt if encryption is chosen
-        execSync(`dfx identity new "${dfxIdentityName}" ${storageMode}`);
+        execSync(`dfx identity new "${dfxIdentityName}" ${storageMode}`, {
+          stdio: 'inherit',
+        });
         console.log(`   ✅ Successfully created identity.`);
       } else {
         console.log(`   ✅ Using existing dfx identity '${dfxIdentityName}'.`);
       }
 
-      // Use the new utility to load the identity, which handles encryption
       const { identity: servicePrincipalIdentity, pemPath } =
-        await loadIdentityWithPrompt(dfxIdentityName);
-
+        loadIdentity(dfxIdentityName);
       const servicePrincipal = servicePrincipalIdentity.getPrincipal();
+
+      // +++ BUILD SCOPES BASED ON THE SIMPLE PROMPT +++
+      const finalScopes: [string, string][] = [
+        [
+          'openid',
+          "Grants access to the user's unique identifier (Principal).",
+        ],
+      ];
+
+      if (serverDetails.willCharge) {
+        finalScopes.push([
+          'prometheus:charge',
+          'Allows the server to request payments from the user.',
+        ]);
+      }
+
       const tokenPrincipals = serverDetails.tokens
         .split(',')
-        .map((p: string) => Principal.fromText(p.trim()));
+        .map((p: string) => p.trim())
+        .filter((p: string) => p)
+        .map((p: string) => Principal.fromText(p));
 
       const actor = await createPrometheusActor();
       const args = {
@@ -96,7 +118,7 @@ export function registerRegisterCommand(program: Command) {
         logo_uri: serverDetails.logo,
         uris: [serverDetails.url],
         accepted_payment_canisters: tokenPrincipals,
-        scopes: [],
+        scopes: finalScopes,
       };
       const result = await actor.register_resource_server(args);
       if ('err' in result) throw new Error(`Operation failed: ${result.err}`);
@@ -104,29 +126,18 @@ export function registerRegisterCommand(program: Command) {
         `   ✅ Successfully registered server '${serverDetails.name}'`,
       );
 
+      // ... (rest of the file remains the same) ...
       console.log('\n2. Generating configuration files...');
-
       const envData = {
         AUTH_ISSUER: 'https://bfggx-7yaaa-aaaai-q32gq-cai.icp0.io',
-        IDENTITY_PEM_PATH: pemPath, // Use the correct path from the utility
+        IDENTITY_PEM_PATH: pemPath,
         PAYOUT_PRINCIPAL: servicePrincipal.toText(),
         SERVER_URL: serverDetails.url,
       };
       updateEnvFile(envData);
       console.log(`   ✅ Created/updated .env file.`);
-
-      // Sync the token metadata to the local JSON file
       await syncTokenConfig(tokenPrincipals);
-
       await updateGitignore(['.env']);
-
       console.log('\n🎉 Configuration complete!');
-      console.log(
-        `   The identity for this server is named '${dfxIdentityName}'.`,
-      );
-      console.log(
-        `   You can use it with dfx: \`dfx identity use ${dfxIdentityName}\``,
-      );
-      console.log(`   Then check its balance: \`dfx ledger balance\``);
     });
 }
