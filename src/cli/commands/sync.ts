@@ -1,15 +1,11 @@
-// File: src/cli/commands/sync.ts
-
 import type { Command } from 'commander';
 import prompts from 'prompts';
-import path from 'node:path';
-import os from 'node:os';
-import { identityFromPem } from '../../identity.js';
 import {
   createPrometheusActor,
   getDfxIdentitiesList,
   updateEnvFile,
   syncTokenConfig,
+  loadIdentityWithPrompt, // Import the new utility function
 } from '../utils.js';
 
 export function registerSyncCommand(program: Command) {
@@ -65,18 +61,12 @@ export function registerSyncCommand(program: Command) {
         return;
       }
 
-      // Validate that the selected local identity matches the remote principal
-      const pemPath = path.join(
-        os.homedir(),
-        '.config',
-        'dfx',
-        'identity',
-        dfxIdentityName,
-        'identity.pem',
-      );
-      const localIdentity = identityFromPem(pemPath);
+      // Use the new utility to load the identity, which handles encryption
+      const { identity: localIdentity, pemPath } =
+        await loadIdentityWithPrompt(dfxIdentityName);
+
       const localPrincipal = localIdentity.getPrincipal();
-      const remotePrincipal = serverToSync.service_principals[0]; // Assuming the first principal is the one we need
+      const remotePrincipal = serverToSync.service_principals[0];
 
       if (localPrincipal.toText() !== remotePrincipal.toText()) {
         throw new Error(
@@ -88,13 +78,12 @@ export function registerSyncCommand(program: Command) {
 
       const envData = {
         AUTH_ISSUER: 'https://bfggx-7yaaa-aaaai-q32gq-cai.icp0.io',
-        IDENTITY_PEM_PATH: pemPath,
-        PAYOUT_PRINCIPAL: remotePrincipal.toText(), // Defaulting to self, user should verify
+        IDENTITY_PEM_PATH: pemPath, // Use the correct path from the utility
+        PAYOUT_PRINCIPAL: remotePrincipal.toText(),
         SERVER_URL: serverToSync.uris[0],
       };
       updateEnvFile(envData);
 
-      // Also sync the token config for the server
       await syncTokenConfig(serverToSync.accepted_payment_canisters);
 
       console.log(

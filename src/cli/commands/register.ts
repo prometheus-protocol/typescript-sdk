@@ -1,17 +1,13 @@
-// File: src/cli/commands/register.ts
-
 import type { Command } from 'commander';
 import prompts from 'prompts';
 import { execSync } from 'node:child_process';
-import path from 'node:path';
-import os from 'node:os';
 import { Principal } from '@dfinity/principal';
-import { identityFromPem } from '../../identity.js';
 import {
   createPrometheusActor,
   updateEnvFile,
   updateGitignore,
   syncTokenConfig,
+  loadIdentityWithPrompt,
 } from '../utils.js';
 
 export function registerRegisterCommand(program: Command) {
@@ -49,7 +45,7 @@ export function registerRegisterCommand(program: Command) {
       ]);
 
       const suggestedIdentityName =
-        serverDetails.name.toLowerCase().replace(/\s+/g, '-') + '-principal';
+        serverDetails.name.toLowerCase().replace(/\s+/g, '-') + '-sa';
       const { dfxIdentityName } = await prompts({
         type: 'text',
         name: 'dfxIdentityName',
@@ -67,24 +63,27 @@ export function registerRegisterCommand(program: Command) {
         .split('\n');
       if (!existingIdentities.includes(dfxIdentityName)) {
         console.log(`   Creating new dfx identity '${dfxIdentityName}'...`);
-        execSync(
-          `dfx identity new "${dfxIdentityName}" --storage-mode plaintext`,
-          { stdio: 'ignore' },
-        );
+
+        // Ask user if they want to encrypt the new identity
+        const { useEncryption } = await prompts({
+          type: 'confirm',
+          name: 'useEncryption',
+          message: 'Do you want to protect this identity with a password?',
+          initial: true,
+        });
+
+        const storageMode = useEncryption ? '' : '--storage-mode plaintext';
+        // Let dfx handle the interactive password prompt if encryption is chosen
+        execSync(`dfx identity new "${dfxIdentityName}" ${storageMode}`);
         console.log(`   ✅ Successfully created identity.`);
       } else {
         console.log(`   ✅ Using existing dfx identity '${dfxIdentityName}'.`);
       }
 
-      const pemPath = path.join(
-        os.homedir(),
-        '.config',
-        'dfx',
-        'identity',
-        dfxIdentityName,
-        'identity.pem',
-      );
-      const servicePrincipalIdentity = identityFromPem(pemPath);
+      // Use the new utility to load the identity, which handles encryption
+      const { identity: servicePrincipalIdentity, pemPath } =
+        await loadIdentityWithPrompt(dfxIdentityName);
+
       const servicePrincipal = servicePrincipalIdentity.getPrincipal();
       const tokenPrincipals = serverDetails.tokens
         .split(',')
@@ -109,7 +108,7 @@ export function registerRegisterCommand(program: Command) {
 
       const envData = {
         AUTH_ISSUER: 'https://bfggx-7yaaa-aaaai-q32gq-cai.icp0.io',
-        IDENTITY_PEM_PATH: pemPath,
+        IDENTITY_PEM_PATH: pemPath, // Use the correct path from the utility
         PAYOUT_PRINCIPAL: servicePrincipal.toText(),
         SERVER_URL: serverDetails.url,
       };

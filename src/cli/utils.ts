@@ -9,6 +9,7 @@ import type { _SERVICE } from '../declarations/oauth_backend/oauth_backend.did.j
 import { IcrcLedgerCanister, mapTokenMetadata } from '@dfinity/ledger-icrc';
 import type { TokenInfo } from '../server.js';
 import type { Principal } from '@dfinity/principal';
+import prompts from 'prompts';
 
 // Define the cache filename
 const TOKEN_CONFIG_FILENAME = 'prometheus-tokens.json';
@@ -175,5 +176,61 @@ export function getDfxIdentitiesList(): string[] {
   } catch (error) {
     console.error('❌ Failed to get DFX identity list.');
     throw error;
+  }
+}
+
+/**
+ * Loads a dfx identity, handling encrypted PEM files by prompting for a password.
+ * @param dfxIdentityName The name of the dfx identity to load.
+ * @returns An object containing the loaded identity and the path to the PEM file.
+ */
+export async function loadIdentityWithPrompt(dfxIdentityName: string) {
+  const identityDir = path.join(
+    os.homedir(),
+    '.config',
+    'dfx',
+    'identity',
+    dfxIdentityName,
+  );
+  const encryptedPath = path.join(identityDir, 'identity.pem.encrypted');
+  const unencryptedPath = path.join(identityDir, 'identity.pem');
+
+  let pemPath: string;
+  let isEncrypted = false;
+
+  if (fs.existsSync(encryptedPath)) {
+    pemPath = encryptedPath;
+    isEncrypted = true;
+  } else if (fs.existsSync(unencryptedPath)) {
+    pemPath = unencryptedPath;
+  } else {
+    throw new Error(
+      `Could not find an identity file for '${dfxIdentityName}'.`,
+    );
+  }
+
+  let password = '';
+  if (isEncrypted) {
+    const response = await prompts({
+      type: 'password',
+      name: 'password',
+      message: `Identity '${dfxIdentityName}' is encrypted. Please enter your password:`,
+    });
+    password = response.password;
+    if (!password) {
+      throw new Error('Password entry cancelled.');
+    }
+  }
+
+  try {
+    const identity = identityFromPem(pemPath, password);
+    return { identity, pemPath };
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('password')) {
+      throw new Error(
+        'Failed to decrypt identity. The password may be incorrect.',
+      );
+    }
+    throw e;
   }
 }
