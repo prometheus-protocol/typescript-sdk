@@ -13,6 +13,7 @@ import {
 } from '@dfinity/ledger-icrc';
 
 export { identityFromPem, identityFromPemContent } from './identity.js';
+export * from './oauth/verifier.js';
 
 /**
  * Represents the structure of the token metadata stored in prometheus-tokens.json.
