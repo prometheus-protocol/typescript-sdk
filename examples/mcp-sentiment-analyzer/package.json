@@ -23,7 +23,7 @@
   "dependencies": {
     "@dfinity/principal": "^2.4.1",
     "@modelcontextprotocol/sdk": "^1.16.0",
-    "@prometheus-protocol/typescript-sdk": "^0.1.5",
+    "@prometheus-protocol/typescript-sdk": "^1.0.0",
     "axios": "^1.10.0",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
