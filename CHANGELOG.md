@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.2...v1.0.3) (2025-07-23)
+
+
+### Bug Fixes
+
+* remove jsonwebtoken from bundle ([feff259](https://github.com/prometheus-protocol/typescript-sdk/commit/feff2592e944ee94084c6b5e8b44f5665e61f535))
+
 ## [1.0.2](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.1...v1.0.2) (2025-07-23)
 
 
