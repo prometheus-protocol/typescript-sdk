@@ -3,39 +3,33 @@ import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
 export interface AuthCanister {
-  'add_test_client' : ActorMethod<[Client], undefined>,
-  'charge_user' : ActorMethod<[ChargeUserArgs], Result_1>,
   'complete_authorize' : ActorMethod<[string], Result>,
+  'complete_payment_setup' : ActorMethod<[string], Result_5>,
+  'confirm_login' : ActorMethod<[string], Result_4>,
+  'delete_resource_server' : ActorMethod<[string], Result>,
+  'deny_consent' : ActorMethod<[string], Result>,
+  'get_my_resource_server_details' : ActorMethod<[string], Result_1>,
+  'get_session_info' : ActorMethod<[string], Result_3>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
   'http_request_update' : ActorMethod<[HttpRequest], HttpResponse>,
+  'list_my_resource_servers' : ActorMethod<[], Result_2>,
   'register_resource_server' : ActorMethod<
     [RegisterResourceServerArgs],
-    ResourceServer
+    Result_1
   >,
   'set_frontend_canister_id' : ActorMethod<[Principal], undefined>,
-  'update_resource_server_uris' : ActorMethod<
-    [UpdateResourceServerUrisArgs],
-    Result
-  >,
+  'update_resource_server' : ActorMethod<[UpdateResourceServerArgs], Result>,
 }
+export type AuthFlowStep = { 'consent' : null } |
+  { 'setup' : null };
 export interface CallbackStrategy {
   'token' : Token,
   'callback' : [Principal, string],
 }
-export interface ChargeUserArgs {
-  'user_to_charge' : Principal,
-  'amount' : bigint,
-  'icrc2_ledger_id' : Principal,
-}
-export interface Client {
-  'status' : { 'active' : null } |
-    { 'pending_activation' : null },
-  'client_secret_hash' : string,
-  'redirect_uris' : Array<string>,
-  'owner' : Principal,
+export interface ConsentData {
+  'scopes' : Array<ScopeData>,
   'client_name' : string,
   'logo_uri' : string,
-  'client_id' : string,
 }
 export type HeaderField = [string, string];
 export interface HttpRequest {
@@ -51,35 +45,62 @@ export interface HttpResponse {
   'streaming_strategy' : [] | [StreamingStrategy],
   'status_code' : number,
 }
+export interface LoginConfirmation {
+  'next_step' : AuthFlowStep,
+  'accepted_payment_canisters' : Array<Principal>,
+  'consent_data' : ConsentData,
+}
 export interface RegisterResourceServerArgs {
   'initial_service_principal' : Principal,
+  'scopes' : Array<[string, string]>,
   'name' : string,
   'uris' : Array<string>,
-  'payout_principal' : Principal,
+  'accepted_payment_canisters' : Array<Principal>,
+  'logo_uri' : string,
 }
 export interface ResourceServer {
   'status' : { 'active' : null } |
     { 'pending' : null },
   'resource_server_id' : string,
   'owner' : Principal,
+  'scopes' : Array<[string, string]>,
   'name' : string,
   'uris' : Array<string>,
+  'accepted_payment_canisters' : Array<Principal>,
+  'logo_uri' : string,
   'service_principals' : Array<Principal>,
-  'payout_principal' : Principal,
 }
 export type Result = { 'ok' : string } |
   { 'err' : string };
-export type Result_1 = { 'ok' : null } |
+export type Result_1 = { 'ok' : ResourceServer } |
   { 'err' : string };
+export type Result_2 = { 'ok' : Array<ResourceServer> } |
+  { 'err' : string };
+export type Result_3 = { 'ok' : SessionInfo } |
+  { 'err' : string };
+export type Result_4 = { 'ok' : LoginConfirmation } |
+  { 'err' : string };
+export type Result_5 = { 'ok' : null } |
+  { 'err' : string };
+export interface ScopeData { 'id' : string, 'description' : string }
+export interface SessionInfo {
+  'resource_server_principal' : Principal,
+  'client_name' : string,
+}
 export interface StreamingCallbackHttpResponse {
   'token' : [] | [Token],
   'body' : Uint8Array | number[],
 }
 export type StreamingStrategy = { 'Callback' : CallbackStrategy };
 export interface Token { 'arbitrary_data' : string }
-export interface UpdateResourceServerUrisArgs {
+export interface UpdateResourceServerArgs {
   'resource_server_id' : string,
-  'new_uris' : Array<string>,
+  'scopes' : [] | [Array<[string, string]>],
+  'name' : [] | [string],
+  'uris' : [] | [Array<string>],
+  'accepted_payment_canisters' : [] | [Array<Principal>],
+  'logo_uri' : [] | [string],
+  'service_principals' : [] | [Array<Principal>],
 }
 export interface _SERVICE extends AuthCanister {}
 export declare const idlFactory: IDL.InterfaceFactory;

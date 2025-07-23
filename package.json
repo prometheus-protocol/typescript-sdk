@@ -1,15 +1,21 @@
 {
   "name": "@prometheus-protocol/typescript-sdk",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.1.5",
   "type": "module",
   "description": "SDK for interacting with the Prometheus Protocol",
   "scripts": {
-    "build": "vite build",
+    "build": "npm run build:lib && npm run build:cli",
+    "build:lib": "vite --config vite.config.lib.ts build",
+    "build:cli": "vite --config vite.config.cli.ts build",
     "test": "vitest"
   },
-  "main": "./dist/prometheus-sdk.cjs.js",
-  "module": "./dist/prometheus-sdk.es.js",
+  "bin": {
+    "prometheus-cli": "./dist/cli.js"
+  },
+  "main": "./dist/server.cjs",
+  "module": "./dist/server.js",
+  "types": "./dist/server.d.ts",
   "exports": {
     ".": {
       "types": "./dist/server.d.ts",
@@ -38,10 +44,14 @@
   "devDependencies": {
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.0.14",
+    "@types/prompts": "^2.4.9",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
+    "vite-plugin-banner": "^0.8.1",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
   },
@@ -51,9 +61,11 @@
     "@dfinity/identity-secp256k1": "^2.4.1",
     "@dfinity/ledger-icrc": "^2.9.1",
     "@dfinity/principal": "^2.4.1",
+    "axios": "^1.10.0",
     "morgan": "^1.10.1",
     "pem-file": "^1.0.1",
     "pkce-challenge": "^5.0.0",
+    "prompts": "^2.4.2",
     "zod": "^4.0.5"
   }
 }

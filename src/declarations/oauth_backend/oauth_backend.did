@@ -1,7 +1,15 @@
-type UpdateResourceServerUrisArgs = 
+type UpdateResourceServerArgs = 
  record {
-   new_uris: vec text;
+   accepted_payment_canisters: opt vec principal;
+   logo_uri: opt text;
+   name: opt text;
    resource_server_id: text;
+   scopes: opt vec record {
+                     text;
+                     text;
+                   };
+   service_principals: opt vec principal;
+   uris: opt vec text;
  };
 type Token = record {arbitrary_data: text;};
 type StreamingStrategy = variant {Callback: CallbackStrategy;};
@@ -10,10 +18,40 @@ type StreamingCallbackHttpResponse =
    body: blob;
    token: opt Token;
  };
-type Result_1 = 
+type SessionInfo = 
+ record {
+   client_name: text;
+   resource_server_principal: principal;
+ };
+type ScopeData = 
+ record {
+   description: text;
+   id: text;
+ };
+type Result_5 = 
  variant {
    err: text;
    ok;
+ };
+type Result_4 = 
+ variant {
+   err: text;
+   ok: LoginConfirmation;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok: SessionInfo;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok: vec ResourceServer;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: ResourceServer;
  };
 type Result = 
  variant {
@@ -22,10 +60,15 @@ type Result =
  };
 type ResourceServer = 
  record {
+   accepted_payment_canisters: vec principal;
+   logo_uri: text;
    name: text;
    owner: principal;
-   payout_principal: principal;
    resource_server_id: text;
+   scopes: vec record {
+                 text;
+                 text;
+               };
    service_principals: vec principal;
    status: variant {
              active;
@@ -35,10 +78,21 @@ type ResourceServer =
  };
 type RegisterResourceServerArgs = 
  record {
+   accepted_payment_canisters: vec principal;
    initial_service_principal: principal;
+   logo_uri: text;
    name: text;
-   payout_principal: principal;
+   scopes: vec record {
+                 text;
+                 text;
+               };
    uris: vec text;
+ };
+type LoginConfirmation = 
+ record {
+   accepted_payment_canisters: vec principal;
+   consent_data: ConsentData;
+   next_step: AuthFlowStep;
  };
 type HttpResponse = 
  record {
@@ -60,41 +114,36 @@ type HeaderField =
    text;
    text;
  };
-type Client = 
+type ConsentData = 
  record {
-   client_id: text;
    client_name: text;
-   client_secret_hash: text;
    logo_uri: text;
-   owner: principal;
-   redirect_uris: vec text;
-   status: variant {
-             active;
-             pending_activation;
-           };
- };
-type ChargeUserArgs = 
- record {
-   amount: nat;
-   icrc2_ledger_id: principal;
-   user_to_charge: principal;
+   scopes: vec ScopeData;
  };
 type CallbackStrategy = 
  record {
    callback: func (Token) -> (StreamingCallbackHttpResponse) query;
    token: Token;
  };
+type AuthFlowStep = 
+ variant {
+   consent;
+   setup;
+ };
 type AuthCanister = 
  service {
-   add_test_client: (client: Client) -> () oneway;
-   charge_user: (args: ChargeUserArgs) -> (Result_1);
    complete_authorize: (session_id: text) -> (Result);
+   complete_payment_setup: (session_id: text) -> (Result_5);
+   confirm_login: (session_id: text) -> (Result_4);
+   delete_resource_server: (id: text) -> (Result);
+   deny_consent: (session_id: text) -> (Result);
+   get_my_resource_server_details: (id: text) -> (Result_1);
+   get_session_info: (session_id: text) -> (Result_3) query;
    http_request: (req: HttpRequest) -> (HttpResponse) query;
    http_request_update: (req: HttpRequest) -> (HttpResponse);
-   register_resource_server: (args: RegisterResourceServerArgs) ->
-    (ResourceServer);
+   list_my_resource_servers: () -> (Result_2);
+   register_resource_server: (args: RegisterResourceServerArgs) -> (Result_1);
    set_frontend_canister_id: (id: principal) -> () oneway;
-   update_resource_server_uris: (args: UpdateResourceServerUrisArgs) ->
-    (Result);
+   update_resource_server: (args: UpdateResourceServerArgs) -> (Result);
  };
 service : () -> AuthCanister

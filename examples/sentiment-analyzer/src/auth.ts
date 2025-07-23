@@ -1,16 +1,16 @@
-import 'dotenv/config';
 import axios from 'axios';
 import { mcpAuthMetadataRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
+import { config } from './config';
 
 // --- Environment Variables ---
-const AUTH_ISSUER = process.env.AUTH_ISSUER!;
+const AUTH_ISSUER = config.AUTH_ISSUER;
 const AUTH_JWKS_URI = `${AUTH_ISSUER}/.well-known/jwks.json`;
-const SERVER_URL = process.env.SERVER_URL || `http://localhost:3000`;
+const SERVER_URL = config.SERVER_URL || `http://localhost:3000`;
 const AUTH_AUDIENCE = SERVER_URL; // Use the server URL as the audience
 
 // --- JWT Verification Logic (from previous step) ---
@@ -46,7 +46,7 @@ async function verifyJwtAndGetAuthContext(token: string): Promise<AuthInfo> {
           scopes: payload.scope ? payload.scope.split(' ') : [],
           expiresAt: payload.exp,
           resource: new URL(SERVER_URL),
-          extra: { user_id: payload.sub },
+          extra: { caller: payload.sub },
         });
       },
     );
