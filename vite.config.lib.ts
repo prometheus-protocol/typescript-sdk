@@ -3,7 +3,6 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   build: {
@@ -25,6 +24,9 @@ export default defineConfig({
         '@dfinity/identity-secp256k1',
         '@dfinity/ledger-icrc',
         '@dfinity/principal',
+        'axios',
+        'jsonwebtoken',
+        'jwks-rsa',
         'pem-file',
         'node:fs',
         'node:buffer',
@@ -39,9 +41,6 @@ export default defineConfig({
   plugins: [
     dts({
       insertTypesEntry: true,
-    }),
-    nodePolyfills({
-      include: ['util'],
     }),
   ],
 });
