@@ -2,196 +2,257 @@
 
 This is the official TypeScript SDK for the [Prometheus Protocol](https://github.com/prometheus-protocol). It provides a simple and powerful way to integrate the Prometheus authentication and payment rail into both frontend and backend JavaScript/TypeScript applications.
 
-The SDK is divided into two main parts:
+## Key Features
 
-- **Browser Client:** For frontend applications (SPAs, React, Svelte, etc.) to handle user authentication and authorization.
-- **Server Client:** For backend services (Node.js) to register themselves as resource servers and to initiate microtransactions.
+The SDK is a monorepo that provides several packages, but the key components for developers are:
+
+- **Browser Client:** For frontend applications (SPAs, React, Svelte, etc.) to handle the user-facing OAuth2 authentication flow.
+- **Server Components:** For backend services (Node.js) to protect API endpoints and initiate microtransactions. This includes a built-in JWT verifier that handles all complex token validation.
+- **Prometheus CLI (`prometheus-cli`):** A command-line tool to streamline the registration and configuration of your local development environment.
 
 ## Installation
 
 ```bash
-npm install @prometheus-protocol/typescript-sdk @dfinity/identity express-jwt jwks-rsa
+# Install the SDK and required peer dependencies for a backend server
+npm install @prometheus-protocol/typescript-sdk express cors axios
 ```
 
 ---
 
-## Usage: Browser (Frontend)
+## Full Tutorial: Building an MCP Server from Scratch
 
-The easiest way to add Prometheus authentication to your single-page application (SPA). The SDK handles the entire OAuth2 flow, including Dynamic Client Registration (DCR), redirects, and token management.
+This guide will walk you through creating a brand new, monetized Node.js API server from an empty directory.
 
-### Example: Authenticating a User in a SPA
+### Step 1: Project Initialization
 
-The `createPrometheusClient` function is the main entry point. It encapsulates the entire authentication flow into a single promise-based function.
+First, set up a new Node.js project with TypeScript.
+
+```bash
+# Create and enter the project directory
+mkdir my-mcp-server
+cd my-mcp-server
+
+# Initialize a new npm project
+npm init -y
+
+# Install production dependencies
+npm install @prometheus-protocol/typescript-sdk express cors axios zod
+
+# Install development dependencies
+npm install -D typescript ts-node-dev @types/node @types/express @types/cors
+```
+
+### Step 2: Configure TypeScript
+
+Create a `tsconfig.json` file in your project root. This configuration is set up for a modern Node.js project with ES Modules.
+
+**`tsconfig.json`**
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+```
+
+### Step 3: Setup with `prometheus-cli`
+
+The `prometheus-cli` tool replaces all manual `dfx` commands for identity creation and service registration.
+
+For a new server, run `register`. This will guide you through creating a dedicated service identity and registering your server with the protocol.
+
+```bash
+npx prometheus-cli register
+```
+
+This command will create two important files:
+
+- `.env`: Contains your local environment variables. **Do not commit this file.**
+- `prometheus-tokens.json`: A list of supported payment tokens. **Commit this file.**
+
+### Step 4: Write the Server Code
+
+Create a `src` directory and add the following files. This structure separates concerns for a clean, maintainable server.
+
+**`src/config.ts`** (Handles all environment variable loading and validation)
 
 ```typescript
-// src/main.ts
-import { createPrometheusClient } from '@prometheus-protocol/typescript-sdk/browser';
+import 'dotenv/config';
+import { z } from 'zod';
 
-async function handleAuthentication() {
-  try {
-    const prometheusClient = await createPrometheusClient({
-      authCanisterId: import.meta.env.VITE_AUTH_CANISTER_ID,
-      resourceServerUrl: import.meta.env.VITE_RESOURCE_SERVER_URL,
-      icHost: import.meta.env.VITE_IC_HOST,
-      clientMetadata: {
-        client_name: 'My Awesome App',
-        grant_types: ['authorization_code', 'refresh_token'],
-        token_endpoint_auth_method: 'none',
-        scope: 'openid prometheus:charge',
-      },
-    });
+const envSchema = z
+  .object({
+    PORT: z.coerce.number().default(3000),
+    AUTH_ISSUER: z.string().url(),
+    SERVER_URL: z.string().url(),
+    PAYOUT_PRINCIPAL: z.string().min(1),
+    IDENTITY_PEM_PATH: z.string().optional(),
+    IDENTITY_PEM_CONTENT: z.string().optional(),
+  })
+  .refine((data) => data.IDENTITY_PEM_PATH || data.IDENTITY_PEM_CONTENT, {
+    message:
+      'Either IDENTITY_PEM_PATH or IDENTITY_PEM_CONTENT must be defined.',
+  });
 
-    // If the promise resolves, the user is successfully authenticated.
-    const accessToken = prometheusClient.getAccessToken();
-    // Now you can make authenticated API calls.
-  } catch (error) {
-    // This catch block is expected on the first login attempt, as it triggers a redirect.
-    console.error('Authentication flow failed or was redirected:', error);
-  }
+const parsedEnv = envSchema.safeParse(process.env);
+
+if (!parsedEnv.success) {
+  console.error(
+    '❌ Invalid environment variables:',
+    parsedEnv.error.flatten().fieldErrors,
+  );
+  throw new Error('Invalid environment variables.');
 }
 
-handleAuthentication();
+export const config = Object.freeze(parsedEnv.data);
 ```
 
----
+**`src/auth.ts`** (Configures all authentication and metadata endpoints)
 
-## Usage: Server (Backend - Node.js)
+```typescript
+import axios from 'axios';
+import {
+  mcpAuthMetadataRouter,
+  requireBearerAuth,
+  createPrometheusJwtVerifier,
+} from '@prometheus-protocol/typescript-sdk';
+import { config } from './config.js';
 
-For backend services that need to register themselves with the protocol or charge users for services.
+export async function configureAuth() {
+  const { data: oauthMetadata } = await axios.get(
+    `${config.AUTH_ISSUER}/.well-known/oauth-authorization-server`,
+  );
 
-### Step 1: Create a Dedicated Service Identity
+  const verifier = createPrometheusJwtVerifier({
+    issuerUrl: config.AUTH_ISSUER,
+    audienceUrl: config.SERVER_URL,
+  });
 
-For security, your live server should use its own dedicated identity, not your personal developer identity.
+  const requiredScopes = ['openid', 'prometheus:charge'];
 
-**1. Create a new identity using `dfx`:**
+  const bearerAuthMiddleware = requireBearerAuth({
+    verifier,
+    requiredScopes,
+    resourceMetadataUrl: `${config.SERVER_URL}/.well-known/oauth-protected-resource`,
+  });
 
-```bash
-dfx identity new service-identity
+  const metadataRouter = mcpAuthMetadataRouter({
+    oauthMetadata,
+    resourceServerUrl: new URL(config.SERVER_URL),
+    scopesSupported: requiredScopes,
+    resourceName: 'My Awesome API Server',
+  });
+
+  return { bearerAuthMiddleware, metadataRouter };
+}
 ```
 
-**2. Export the private key to a PEM file:** This file will be used by your Node.js server to sign requests.
+**`src/index.ts`** (The main application entry point)
 
-```bash
-# Make sure you are using the new identity
-dfx identity use service-identity
-
-# Export the key
-dfx identity export service-identity > service-identity.pem
-```
-
-**3. Get the Principal ID:** You will need this principal when you register your service.
-
-```bash
-# Get the principal of your new service identity
-dfx identity get-principal
-# It will output a principal string like: jmjyx-d5aic-g6lug-uhffn-aiuid-...
-
-# IMPORTANT: Switch back to your main developer identity for administrative tasks
-dfx identity use default
-```
-
-Now you have a `service-identity.pem` file for your server and its corresponding Principal ID.
-
-### Step 2: Registering Your Service (One-Time Setup)
-
-Registration is an administrative task that proves your ownership of a service. This should be done using your primary developer identity (`default`).
-
-**Using `dfx` (Recommended for simplicity):**
-
-```bash
-# Replace placeholders with your actual values
-dfx canister call <auth_canister_id> register_resource_server '(record {
-  name = "My Awesome API";
-  initial_service_principal = principal "<the_principal_from_step_1>";
-  uris = vec { "https://api.my-awesome-app.com" };
-})'
-```
-
-### Step 3: Protecting Your API and Charging Users
-
-This is the runtime logic for your live server. It uses the `service-identity.pem` file you created in Step 1.
-
-**Example `server.js`:**
-
-```javascript
+```typescript
 import express from 'express';
 import cors from 'cors';
-import { expressjwt as jwt } from 'express-jwt';
-import jwksRsa from 'jwks-rsa';
 import {
   PrometheusServerClient,
   identityFromPem,
-} from '@prometheus-protocol/typescript-sdk/server';
+  identityFromPemContent,
+} from '@prometheus-protocol/typescript-sdk';
 import { Principal } from '@dfinity/principal';
-import 'dotenv/config';
+import { config } from './config.js';
+import { configureAuth } from './auth.js';
+import fs from 'fs';
 
-// --- CONFIGURATION ---
-const app = express();
-app.use(cors());
-app.use(express.json());
+async function main() {
+  const app = express();
+  app.use(cors());
+  app.use(express.json());
 
-const PORT = process.env.PORT || 8080;
-const AUTH_CANISTER_ID = process.env.AUTH_CANISTER_ID;
-const IC_HOST = process.env.IC_HOST || 'http://127.0.0.1:4943';
-const RESOURCE_SERVER_URL = process.env.RESOURCE_SERVER_URL;
+  const { bearerAuthMiddleware, metadataRouter } = await configureAuth();
+  app.use(metadataRouter);
 
-// --- JWT VALIDATION MIDDLEWARE ---
-const checkJwt = jwt({
-  secret: jwksRsa.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: `${IC_HOST}/.well-known/jwks.json?canisterId=${AUTH_CANISTER_ID}`,
-  }),
-  audience: RESOURCE_SERVER_URL,
-  issuer: AUTH_CANISTER_ID,
-  algorithms: ['ES256'],
-});
+  const identity = config.IDENTITY_PEM_CONTENT
+    ? identityFromPemContent(config.IDENTITY_PEM_CONTENT)
+    : identityFromPem(fs.readFileSync(config.IDENTITY_PEM_PATH!, 'utf-8'));
 
-// --- SDK INITIALIZATION ---
-// Load your SERVICE's identity from the PEM file created in Step 1.
-const serviceIdentity = identityFromPem('./service-identity.pem');
-const prometheusClient = new PrometheusServerClient({
-  authCanisterId: AUTH_CANISTER_ID,
-  identity: serviceIdentity,
-  host: IC_HOST,
-  payoutPrincipal: Principal.fromText(process.env.PAYOUT_PRINCIPAL),
-});
-
-console.log(
-  `Server running with Principal: ${serviceIdentity.getPrincipal().toText()}`,
-);
-
-// --- PAYMENT MIDDLEWARE ---
-const paymentMiddleware = async (req, res, next) => {
-  const userPrincipal = req.auth.sub;
-  if (!userPrincipal) {
-    return res.status(401).json({ error: 'User principal not found in JWT.' });
-  }
-
-  const result = await prometheusClient.charge({
-    userToCharge: Principal.fromText(userPrincipal),
-    amount: 10000n, // Example: charge 0.0001 of the token
-    icrc2LedgerId: Principal.fromText('a4tbr-q4aaa-aaaaa-qaafq-cai'), // Replace with your ICRC2 ledger ID
+  const prometheusClient = new PrometheusServerClient({
+    identity,
+    payoutPrincipal: Principal.fromText(config.PAYOUT_PRINCIPAL),
+    tokenConfigPath: './prometheus-tokens.json',
   });
 
-  if (result.ok) {
-    console.log(`✅ Payment successful for ${userPrincipal}.`);
-    next();
-  } else {
-    res.status(402).json({ error: 'Payment Required', details: result.err });
-  }
-};
+  const paymentMiddleware = async (req, res, next) => {
+    const userPrincipal = req.auth.sub;
+    const result = await prometheusClient.charge({
+      userToCharge: Principal.fromText(userPrincipal),
+      amount: 0.1, // Example: charge 0.1 ICP of the token specified in registration
+    });
 
-// --- API ROUTES ---
-app.get('/api/super-secret-data', checkJwt, paymentMiddleware, (req, res) => {
-  res.json({
-    message: `Access granted to ${req.auth.sub}. The secret data is: 42.`,
-  });
-});
+    if (result.ok) {
+      console.log(`✅ Payment successful for ${userPrincipal}.`);
+      next();
+    } else {
+      res.status(402).json({ error: 'Payment Required', details: result.err });
+    }
+  };
 
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+  app.get(
+    '/api/secret-data',
+    bearerAuthMiddleware,
+    paymentMiddleware,
+    (req, res) => {
+      res.json({
+        message: `Access granted to ${req.auth.sub}. The secret data is: 42.`,
+      });
+    },
+  );
+
+  app.listen(config.PORT, () =>
+    console.log(`Server listening on port ${config.PORT}`),
+  );
+}
+
+main().catch(console.error);
 ```
+
+### Step 5: Run the Server
+
+Add a `start` script to your `package.json`.
+
+**`package.json`**
+
+```json
+{
+  // ... other fields
+  "type": "module",
+  "scripts": {
+    "start": "ts-node-dev --respawn --transpile-only src/index.ts"
+  }
+}
+```
+
+Now, start your server!
+
+```bash
+npm run start
+```
+
+Your monetized API is now running locally.
+
+### Step 6: Next Steps - Deployment
+
+To deploy your server, you need to containerize it with a `Dockerfile` and host it on a platform like Google Cloud Run, AWS ECS, or Azure App Service. Review the "Production Deployment Concepts" section in the `sentiment-analyzer`'s README for best practices on handling secrets and environment variables in a production environment.
+
+---
 
 ## Contributing
 
