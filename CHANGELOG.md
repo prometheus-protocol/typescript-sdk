@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.1...v1.0.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* include util polyfill for jws compatibility ([35d94d1](https://github.com/prometheus-protocol/typescript-sdk/commit/35d94d1d704756140816b0061345e416aa464c89))
+
 ## [1.0.1](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.0...v1.0.1) (2025-07-23)
 
 
