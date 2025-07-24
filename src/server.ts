@@ -10,6 +10,7 @@ import * as fs from 'node:fs';
 import {
   IcrcLedgerCanister,
   type TransferFromParams,
+  type TransferParams,
 } from '@dfinity/ledger-icrc';
 export {
   identityFromDfx,
@@ -64,6 +65,34 @@ export interface ChargeOptions {
 }
 
 /**
+ * Defines the arguments for the `payout` method.
+ */
+export interface PayoutOptions {
+  /** The Principal of the user who will receive the tokens. */
+  userToReceive: string | Principal;
+  /** The amount of tokens to send, specified in whole tokens (e.g., 100.0). */
+  amount: number;
+  /** The symbol of the token to send (e.g., 'PMP'). If not provided, defaults to the first token configured. */
+  tokenSymbol?: string;
+}
+
+/**
+ * Represents the outcome of a charge operation.
+ */
+export type ChargeResult =
+  | { ok: true; blockIndex: bigint }
+  | { ok: false; error: string };
+
+/** * Represents the outcome of a payout operation.
+ * This is similar to ChargeResult but specifically for payouts.
+ * It indicates whether the payout was successful and includes the block index
+ * of the transaction or an error message.
+ */
+export type PayoutResult =
+  | { ok: true; blockIndex: bigint }
+  | { ok: false; error: string };
+
+/**
  * A helper function to parse the structured error from the ICRC ledger.
  * @param error The error object thrown by the ledger canister.
  * @returns A human-readable error string.
@@ -93,13 +122,6 @@ function parseIcrcError(error: any): string {
   }
   return error instanceof Error ? error.message : 'An unknown error occurred.';
 }
-
-/**
- * Represents the outcome of a charge operation.
- */
-export type ChargeResult =
-  | { ok: true; blockIndex: bigint }
-  | { ok: false; error: string };
 
 /**
  * The main client for interacting with the Prometheus Protocol from a secure server
@@ -201,6 +223,62 @@ export class PrometheusServerClient {
     } catch (e) {
       const errorMessage = parseIcrcError(e);
       console.error('Charge operation failed:', errorMessage);
+      return { ok: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Transfers a specified amount of a token FROM the server's identity TO a user.
+   * This is useful for creating faucets or distributing rewards.
+   *
+   * @param options An object containing the details of the payout.
+   * @returns A promise that resolves to a result object indicating the outcome of the payout.
+   */
+  public async payout(options: PayoutOptions): Promise<PayoutResult> {
+    try {
+      // Step 1: Lazily get the token info from the local file.
+      const supportedTokens = await this.getSupportedTokens();
+      let tokenToUse: TokenInfo | undefined;
+
+      // Find the correct token to use, or default to the first one.
+      if (options.tokenSymbol) {
+        tokenToUse = supportedTokens.find(
+          (t) => t.symbol === options.tokenSymbol,
+        );
+        if (!tokenToUse) {
+          throw new Error(`Token '${options.tokenSymbol}' is not supported.`);
+        }
+      } else {
+        tokenToUse = supportedTokens[0];
+      }
+
+      const ledgerCanister = IcrcLedgerCanister.create({
+        agent: this.agent,
+        canisterId: Principal.fromText(tokenToUse.canister_id),
+      });
+
+      const userToReceive =
+        typeof options.userToReceive === 'string'
+          ? Principal.fromText(options.userToReceive)
+          : options.userToReceive;
+
+      // Convert the token amount to the smallest unit (e.g., e8s)
+      const amountInSmallestUnit = BigInt(
+        Math.round(options.amount * 10 ** tokenToUse.decimals),
+      );
+
+      // Step 2: Execute the transfer. This is a direct transfer from the server's identity.
+      const transferArgs: TransferParams = {
+        to: { owner: userToReceive, subaccount: [] },
+        amount: amountInSmallestUnit,
+      };
+
+      const txId = await ledgerCanister.transfer(transferArgs);
+
+      return { ok: true, blockIndex: txId };
+    } catch (e) {
+      const errorMessage = parseIcrcError(e);
+      console.error('Payout operation failed:', errorMessage);
       return { ok: false, error: errorMessage };
     }
   }
