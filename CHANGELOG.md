@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.0...v1.2.1) (2025-07-24)
+
+
+### Bug Fixes
+
+* remove unused subaccount from sdk ([edd41f1](https://github.com/prometheus-protocol/typescript-sdk/commit/edd41f1e8cec18328e7f984d2231608183d70555))
+
 # [1.2.0](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.1.0...v1.2.0) (2025-07-24)
 
 
