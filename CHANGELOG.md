@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.2...v1.2.3) (2025-07-24)
+
+
+### Bug Fixes
+
+* throw the correct error to trigger oauth refresh ([29b4266](https://github.com/prometheus-protocol/typescript-sdk/commit/29b4266377a673a80a11deeab96f87cc3d7c4282))
+
 ## [1.2.2](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.1...v1.2.2) (2025-07-24)
 
 
