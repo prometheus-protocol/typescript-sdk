@@ -1,3 +1,11 @@
+## [1.0.4](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.3...v1.0.4) (2025-07-23)
+
+
+### Bug Fixes
+
+* add scope setting and selection to cli ([0f854d7](https://github.com/prometheus-protocol/typescript-sdk/commit/0f854d753079d696326666c216f146b58cb160d1))
+* handle encrypted dfx identities ([d2b4f82](https://github.com/prometheus-protocol/typescript-sdk/commit/d2b4f82f270ed80a1ae1519eb8ee5e4b091909d4))
+
 ## [1.0.3](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.2...v1.0.3) (2025-07-23)
 
 
