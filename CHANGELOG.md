@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.1.0...v1.2.0) (2025-07-24)
+
+
+### Features
+
+* add get balance to sdk ([4647fcf](https://github.com/prometheus-protocol/typescript-sdk/commit/4647fcfe8d4770730bc1a2c502d8805aadc01b9e))
+
 # [1.1.0](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.4...v1.1.0) (2025-07-24)
 
 
