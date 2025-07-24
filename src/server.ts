@@ -340,7 +340,6 @@ export class PrometheusServerClient {
 
       const balanceRequest: BalanceParams = {
         owner: userPrincipal,
-        subaccount: [],
       };
 
       const balanceBigInt = await ledgerCanister.balance(balanceRequest);
