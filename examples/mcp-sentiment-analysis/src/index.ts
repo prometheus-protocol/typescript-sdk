@@ -38,7 +38,7 @@ const getServer = () => {
     {
       title: 'Sentiment Analysis Tool',
       description:
-        'Analyzes the sentiment of a given text. Returns a detailed score. Costs 0.1 tokens per call.',
+        'Analyzes the sentiment of a given text. Returns a detailed score. Costs 0.01 tokens per call.',
       inputSchema: { text: z.string() },
     },
     async ({ text }, { authInfo }) => {
@@ -47,7 +47,7 @@ const getServer = () => {
 
       const res = await prometheusClient.charge({
         userToCharge,
-        amount: 0.1, // Charge 0.1 cents
+        amount: 0.01, // Charge 0.01 cents
       });
 
       // +++ THE FIX: Use a replacer function to handle BigInts +++

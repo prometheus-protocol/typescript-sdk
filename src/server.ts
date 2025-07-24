@@ -119,6 +119,10 @@ export type GetBalanceResult =
  * @returns A human-readable error string.
  */
 function parseIcrcError(error: any): string {
+  // NEW: Define the dashboard URL and a helpful prompt for users.
+  const dashboardUrl = 'https://bmfnl-jqaaa-aaaai-q32ha-cai.icp0.io';
+  const userActionPrompt = `Please visit the dashboard to top up your balance or manage your allowance: ${dashboardUrl}`;
+
   if (error && typeof error === 'object' && 'errorType' in error) {
     const { errorType } = error;
     const key = Object.keys(errorType)[0];
@@ -126,9 +130,9 @@ function parseIcrcError(error: any): string {
 
     switch (key) {
       case 'InsufficientAllowance':
-        return `Insufficient allowance: The user has not approved a large enough spending limit for this server. Current allowance: ${Number(value.allowance) / 1e8} tokens.`;
+        return `Insufficient allowance: The user has not approved a large enough spending limit for this server. Current allowance: ${Number(value.allowance) / 1e8} tokens.\n\n${userActionPrompt}`;
       case 'InsufficientFunds':
-        return `Insufficient funds: The user's wallet balance is too low. Current balance: ${Number(value.balance) / 1e8} tokens.`;
+        return `Insufficient funds: The user's wallet balance is too low. Current balance: ${Number(value.balance) / 1e8} tokens.\n\n${userActionPrompt}`;
       case 'BadFee':
         return `Bad fee: The transaction fee was incorrect. Expected: ${Number(value.expected_fee) / 1e8} tokens.`;
       case 'Duplicate':
