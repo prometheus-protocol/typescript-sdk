@@ -13,6 +13,9 @@ import {
 import { Principal } from '@dfinity/principal';
 import { config } from './config';
 
+const MAX_BALANCE = 100; // The maximum balance a user can hold
+const CLAIM_AMOUNT = 10; // The amount a user receives per claim
+
 // +++ 3. CONFIGURE THE PROMETHEUS CLIENT CORRECTLY +++
 // The SDK is smart enough to handle the host and fetchRootKey logic.
 // We just need to provide the core configuration.
@@ -34,38 +37,63 @@ const getServer = () => {
     version: '1.0.0',
   });
   server.registerTool(
-    'analyze_sentiment',
+    'get_test_tokens',
     {
-      title: 'Sentiment Analysis Tool',
-      description:
-        'Analyzes the sentiment of a given text. Returns a detailed score. Costs 0.1 tokens per call.',
-      inputSchema: { text: z.string() },
+      title: 'PMP Token Faucet',
+      description: `Claim ${CLAIM_AMOUNT} PMP test tokens. Your balance cannot exceed ${MAX_BALANCE} PMP.`,
+      inputSchema: {}, // No input needed
     },
-    async ({ text }, { authInfo }) => {
-      console.log(`Initiating charge for user: ${authInfo?.extra?.caller}`);
-      const userToCharge = authInfo?.extra?.caller as string;
-
-      const res = await prometheusClient.charge({
-        userToCharge,
-        amount: 0.1, // Charge 0.1 cents
-      });
-
-      // +++ THE FIX: Use a replacer function to handle BigInts +++
-      const replacer = (key: string, value: any) =>
-        typeof value === 'bigint' ? value.toString() : value;
-
-      console.log(`Charge result: ${JSON.stringify(res, replacer)}`);
-
-      // Check if the charge was successful before proceeding
-      if (!res.ok) {
-        // You might want to throw an error here to stop the tool execution
-        // and return an error to the user.
-        throw new Error(`Charge failed: ${res.error}`);
+    async (_, { authInfo }) => {
+      const userPrincipal = authInfo?.extra?.caller as string;
+      if (!userPrincipal) {
+        throw new Error('Authentication error: Could not identify the caller.');
       }
 
-      const sentiment = new Sentiment();
-      const result = sentiment.analyze(text);
-      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+      // Step 1: Check the user's current balance.
+      const balanceResult = await prometheusClient.getBalance({
+        userPrincipal,
+        tokenSymbol: 'PMP',
+      });
+
+      if (!balanceResult.ok) {
+        throw new Error(`Could not check balance: ${balanceResult.error}`);
+      }
+
+      const currentBalance = balanceResult.balance;
+      console.log(
+        `User ${userPrincipal} has current balance of ${currentBalance} PMP.`,
+      );
+
+      // Step 2: Enforce the maximum balance rule.
+      if (currentBalance >= MAX_BALANCE) {
+        throw new Error(
+          `Your balance is ${currentBalance} PMP, which is at or above the maximum of ${MAX_BALANCE}. Please spend some tokens on an MCP server to claim more.`,
+        );
+      }
+
+      // Step 3: Calculate the top-up amount.
+      const amountToPayout = Math.min(
+        CLAIM_AMOUNT,
+        MAX_BALANCE - currentBalance,
+      );
+
+      console.log(
+        `Topping up user ${userPrincipal} with ${amountToPayout} PMP.`,
+      );
+
+      // Step 4: Perform the payout.
+      const payoutResult = await prometheusClient.payout({
+        userToReceive: userPrincipal,
+        amount: amountToPayout,
+        tokenSymbol: 'PMP',
+      });
+
+      if (!payoutResult.ok) {
+        throw new Error(`Faucet payout failed: ${payoutResult.error}`);
+      }
+
+      const successMessage = `Successfully sent ${amountToPayout.toFixed(2)} PMP to your account. Your new balance is approximately ${(currentBalance + amountToPayout).toFixed(2)} PMP.`;
+      return { content: [{ type: 'text', text: successMessage }] };
     },
   );
   return server;

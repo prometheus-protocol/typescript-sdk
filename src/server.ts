@@ -9,6 +9,7 @@ import { Principal } from '@dfinity/principal';
 import * as fs from 'node:fs';
 import {
   IcrcLedgerCanister,
+  type BalanceParams,
   type TransferFromParams,
   type TransferParams,
 } from '@dfinity/ledger-icrc';
@@ -77,6 +78,17 @@ export interface PayoutOptions {
 }
 
 /**
+ * Options for the `getBalance` method.
+ * This allows checking the balance of a specific user for a specific token.
+ */
+export interface GetBalanceOptions {
+  /** The Principal of the user whose balance is being checked. */
+  userPrincipal: string | Principal;
+  /** The symbol of the token to check. If not provided, defaults to the first token configured. */
+  tokenSymbol?: string;
+}
+
+/**
  * Represents the outcome of a charge operation.
  */
 export type ChargeResult =
@@ -90,6 +102,15 @@ export type ChargeResult =
  */
 export type PayoutResult =
   | { ok: true; blockIndex: bigint }
+  | { ok: false; error: string };
+
+/**
+ * Represents the outcome of a balance check operation.
+ * This indicates whether the balance check was successful and includes the user's balance
+ * in whole tokens or an error message.
+ */
+export type GetBalanceResult =
+  | { ok: true; balance: number }
   | { ok: false; error: string };
 
 /**
@@ -279,6 +300,59 @@ export class PrometheusServerClient {
     } catch (e) {
       const errorMessage = parseIcrcError(e);
       console.error('Payout operation failed:', errorMessage);
+      return { ok: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Checks the balance of a specified user for a given token.
+   *
+   * @param options An object containing the user principal and optional token symbol.
+   * @returns A promise that resolves to the user's balance in whole tokens.
+   */
+  public async getBalance(
+    options: GetBalanceOptions,
+  ): Promise<GetBalanceResult> {
+    try {
+      const supportedTokens = await this.getSupportedTokens();
+      let tokenToUse: TokenInfo | undefined;
+
+      if (options.tokenSymbol) {
+        tokenToUse = supportedTokens.find(
+          (t) => t.symbol === options.tokenSymbol,
+        );
+        if (!tokenToUse) {
+          throw new Error(`Token '${options.tokenSymbol}' is not supported.`);
+        }
+      } else {
+        tokenToUse = supportedTokens[0];
+      }
+
+      const ledgerCanister = IcrcLedgerCanister.create({
+        agent: this.agent,
+        canisterId: Principal.fromText(tokenToUse.canister_id),
+      });
+
+      const userPrincipal =
+        typeof options.userPrincipal === 'string'
+          ? Principal.fromText(options.userPrincipal)
+          : options.userPrincipal;
+
+      const balanceRequest: BalanceParams = {
+        owner: userPrincipal,
+        subaccount: [],
+      };
+
+      const balanceBigInt = await ledgerCanister.balance(balanceRequest);
+
+      // Convert from smallest unit to whole tokens
+      const balance = Number(balanceBigInt) / 10 ** tokenToUse.decimals;
+
+      return { ok: true, balance };
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : 'An unknown error occurred.';
+      console.error('Get balance operation failed:', errorMessage);
       return { ok: false, error: errorMessage };
     }
   }
