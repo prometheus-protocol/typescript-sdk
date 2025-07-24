@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.4...v1.1.0) (2025-07-24)
+
+
+### Features
+
+* add payout method to sdk for paying caller ([cb1aee9](https://github.com/prometheus-protocol/typescript-sdk/commit/cb1aee9e80246423d14617d9c4ec561b4b826803))
+
 ## [1.0.4](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.0.3...v1.0.4) (2025-07-23)
 
 
