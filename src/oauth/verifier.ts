@@ -35,7 +35,7 @@ export function createPrometheusJwtVerifier(
     }
     jwksRsaClient.getSigningKey(header.kid, (err, key) => {
       if (err) {
-        return callback(err);
+        return callback(new InvalidTokenError(err.message));
       }
       callback(null, key?.getPublicKey());
     });
