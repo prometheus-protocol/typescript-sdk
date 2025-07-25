@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.3...v1.2.4) (2025-07-24)
+
+
+### Bug Fixes
+
+* add caching to jwk fetching ([a81ff65](https://github.com/prometheus-protocol/typescript-sdk/commit/a81ff65cf4f51c7977cb57c424faeaff36facb7f))
+
 ## [1.2.3](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.2...v1.2.3) (2025-07-24)
 
 
