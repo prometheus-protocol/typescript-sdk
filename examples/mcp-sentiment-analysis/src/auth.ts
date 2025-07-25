@@ -2,7 +2,7 @@ import axios from 'axios';
 import { mcpAuthMetadataRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { config } from './config';
-import { createPrometheusJwtVerifier } from '@prometheus-protocol/typescript-sdk';
+import { createPrometheusJwtVerifier } from './verifier';
 
 // --- Main Auth Configuration Function ---
 export async function configureAuth() {
