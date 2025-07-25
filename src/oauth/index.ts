@@ -20,7 +20,7 @@ import {
   OAuthError,
   ServerError,
   UnauthorizedClientError,
-} from './errors';
+} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 
 // Explicitly re-export the TYPES from './types'
 export type {

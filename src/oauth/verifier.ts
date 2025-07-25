@@ -1,7 +1,10 @@
-import { InvalidTokenError, ServerError } from './errors';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import type { AuthInfo } from './types';
+import {
+  InvalidTokenError,
+  ServerError,
+} from '@modelcontextprotocol/sdk/server/auth/errors.js';
 
 /**
  * Configuration for the Prometheus JWT Verifier.
@@ -75,6 +78,7 @@ export function createPrometheusJwtVerifier(
             audience: audienceUrl,
             issuer: issuerUrl,
             algorithms: ['ES256'],
+            ignoreExpiration: true,
           },
           (err, decodedPayload) => {
             // Let the outer catch block handle classification.
@@ -108,11 +112,18 @@ export function createPrometheusJwtVerifier(
       // This catch block now correctly classifies errors.
       if (error instanceof ServerError) {
         // If it's already a ServerError (from our getKey function), let it bubble up.
+        console.error(
+          '[ServerError] An error occurred during token verification:',
+          error.message,
+        );
         throw error;
       }
 
       if (error instanceof InvalidTokenError) {
         // If it's already an InvalidTokenError (from claim checks or getKey), let it bubble up.
+        console.error(
+          `[InvalidTokenError] JWT verification failed: ${error.message}`,
+        );
         throw error;
       }
 
