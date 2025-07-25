@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.4...v1.2.5) (2025-07-25)
+
+
+### Bug Fixes
+
+* remove expiration check so middleware can handle it ([d1eab78](https://github.com/prometheus-protocol/typescript-sdk/commit/d1eab785095e8e91b4fe500ebd66add2bd7578dd))
+
 ## [1.2.4](https://github.com/prometheus-protocol/typescript-sdk/compare/v1.2.3...v1.2.4) (2025-07-24)
 
 
