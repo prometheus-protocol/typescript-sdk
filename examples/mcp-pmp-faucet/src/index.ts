@@ -1,10 +1,8 @@
 import express, { Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z } from 'zod';
 import { configureAuth } from './auth';
 import morgan from 'morgan';
-import Sentiment from 'sentiment';
 import {
   identityFromPem,
   identityFromPemContent,
